@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* Modo escuro manual: classe `dark` no <html> (tem de vir logo após @import). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@config "../../tailwind.config.ts";
+
+/*
+ * Tailwind v4 — um único glob sob `src/`, estável em Windows/Linux.
+ * Evita paths relativos ambíguos quando o CSS ficava dentro de `app/`.
+ */
+@source "../**/*.{js,jsx,ts,tsx,mjs,mts,mdx}";
+
+@theme {
+  --color-app-bg: #f9fafb;
+  --color-app-green: #16a34a;
+  --color-app-red: #dc2626;
+  --color-dark-base: #030b14;
+  --color-dark-surface: #071523;
+  --color-dark-elevated: #0a1a2b;
+  --color-dark-border: rgba(64, 196, 255, 0.22);
+  --color-dark-glow: rgba(22, 163, 74, 0.28);
+  --color-dark-cyan: #22d3ee;
+  --color-dark-text: #d7f7ff;
+  --font-family-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html.dark body {
+  background:
+    radial-gradient(1200px 640px at 8% -8%, rgba(34, 211, 238, 0.16), transparent 52%),
+    radial-gradient(1000px 700px at 90% 0%, rgba(22, 163, 74, 0.12), transparent 58%),
+    linear-gradient(165deg, #020812 0%, #04101b 48%, #030b14 100%);
+  color: var(--color-dark-text);
+}
+
+.dark .ds-glass {
+  border: 1px solid var(--color-dark-border);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--color-dark-surface) 88%, white 12%),
+    color-mix(in oklab, var(--color-dark-elevated) 92%, black 8%)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(34, 211, 238, 0.08),
+    0 22px 44px -26px rgba(0, 0, 0, 0.75);
+}
+
+/*
+ * Fundo/cores base: definidos no layout com utilitários Tailwind.
+ * Evita `body { background }` solto aqui — isso vinha depois das utilities e
+ * quebrava `dark:bg-*` / cores do tema.
+ */
+
+::selection {
+  background-color: color-mix(in oklab, var(--color-app-green) 22%, transparent);
+}
+
+/* CoopFinance splash */
+@keyframes coop-bean-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-16px) rotate(6deg);
+    opacity: 0.75;
+  }
+}
+
+.coop-bean {
+  animation: coop-bean-float 4.5s ease-in-out infinite;
+}
+
+@keyframes coop-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.coop-progress-fill {
+  width: 0;
+  animation: coop-progress 3s ease-out forwards;
+}
+
+@keyframes dash-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-dash-enter {
+  animation: dash-enter 0.55s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
