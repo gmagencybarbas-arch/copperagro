@@ -91,14 +91,14 @@ export function StockEntryDrawer() {
   return (
     <>
       <div
-        className={`fixed inset-0 z-[100] bg-black/35 backdrop-blur-[2px] transition-opacity duration-300 ease-out ${
+        className={`fixed inset-0 z-[100] bg-black/25 transition-opacity duration-200 ease-app ${
           open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         }`}
         aria-hidden={!open}
         onClick={close}
       />
       <aside
-        className={`fixed inset-y-0 right-0 z-[110] flex w-full flex-col border-l border-gray-200/90 bg-white shadow-[0_0_60px_-12px_rgba(15,23,42,0.35)] transition-transform duration-300 ease-out sm:max-w-xl lg:max-w-2xl ${
+        className={`app-drawer-surface fixed inset-y-0 right-0 z-[110] flex w-full flex-col border-l border-gray-200/90 bg-white shadow-[0_0_60px_-12px_rgba(15,23,42,0.25)] will-change-transform transition-transform duration-[300ms] ease-app sm:max-w-xl lg:max-w-2xl ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         aria-hidden={!open}
@@ -205,7 +205,7 @@ export function StockEntryDrawer() {
               onChange={(e) => setQuantity(Number(e.target.value))}
             />
             {qtyInvalid && (
-              <p className="text-xs font-medium text-[#dc2626]">
+              <p className="text-xs font-medium text-rose-800">
                 Informe uma quantidade maior que zero.
               </p>
             )}

@@ -378,7 +378,7 @@ export function CopperAgroLanding() {
             >
               <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
                 <div className="flex gap-1.5">
-                  <span className="h-3 w-3 rounded-full bg-red-400/90" />
+                  <span className="h-3 w-3 rounded-full bg-rose-400/75" />
                   <span className="h-3 w-3 rounded-full bg-amber-400/90" />
                   <span className="h-3 w-3 rounded-full bg-emerald-400/90" />
                 </div>

@@ -1,10 +1,12 @@
 "use client";
 
 import { BigNumber, CleanInput, PrimaryButton } from "@/design-system";
+import { DEFAULT_EXPENSE_CATEGORY } from "@/lib/expense-migrate";
+import { formatBRLFine } from "@/lib/format";
 import { useDrawerStore } from "@/store/drawer-store";
 import { useExpenseStore } from "@/store/expense-store";
 import { useSectorStore } from "@/store/sector-store";
-import { formatBRLFine } from "@/lib/format";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABEL, type ExpenseCategory } from "@/types/expense";
 import { useEffect, useRef, useState } from "react";
 
 function todayISO(): string {
@@ -24,7 +26,8 @@ export function ExpenseDrawer() {
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState("");
-  const [sectorId, setSectorId] = useState<string>("global");
+  const [sectorId, setSectorId] = useState<string | undefined>(undefined);
+  const [category, setCategory] = useState<ExpenseCategory>(DEFAULT_EXPENSE_CATEGORY);
   const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
@@ -32,7 +35,8 @@ export function ExpenseDrawer() {
     setDate(todayISO());
     setAmount(0);
     setDescription("");
-    setSectorId("global");
+    setSectorId(undefined);
+    setCategory(DEFAULT_EXPENSE_CATEGORY);
     setAttempted(false);
     requestAnimationFrame(() => dateRef.current?.focus());
   }, [open]);
@@ -43,9 +47,13 @@ export function ExpenseDrawer() {
 
   return (
     <>
-      <div className="fixed inset-0 z-[100] bg-black/35 backdrop-blur-[2px]" onClick={close} />
+      <div
+        className="fixed inset-0 z-[100] bg-black/25"
+        onClick={close}
+        aria-hidden
+      />
       <aside
-        className="fixed inset-y-0 right-0 z-[110] flex w-full max-w-xl flex-col border-l border-gray-200/90 bg-white shadow-[0_0_60px_-12px_rgba(15,23,42,0.35)]"
+        className="app-drawer-surface fixed inset-y-0 right-0 z-[110] flex w-full max-w-xl flex-col border-l border-gray-200/90 bg-white shadow-[0_0_60px_-12px_rgba(15,23,42,0.25)]"
         role="dialog"
         aria-modal="true"
       >
@@ -72,7 +80,8 @@ export function ExpenseDrawer() {
               date,
               amount,
               description: description.trim(),
-              sectorId: sectorId === "global" ? undefined : sectorId,
+              category,
+              sectorId,
             });
             close();
           }}
@@ -91,13 +100,29 @@ export function ExpenseDrawer() {
             <CleanInput value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Frete, adubo, manutenção..." />
           </div>
           <div className="space-y-2">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Categoria</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm dark:border-slate-600 dark:bg-slate-900/80 dark:text-slate-100"
+            >
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {EXPENSE_CATEGORY_LABEL[c]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
             <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Setor</label>
             <select
-              value={sectorId}
-              onChange={(e) => setSectorId(e.target.value)}
+              value={sectorId || "global"}
+              onChange={(e) =>
+                setSectorId(e.target.value === "global" ? undefined : e.target.value)
+              }
               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm"
             >
-              <option value="global">Global</option>
+              <option value="global">Despesa geral (fazenda)</option>
               {sectors.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -106,11 +131,15 @@ export function ExpenseDrawer() {
             </select>
           </div>
 
-          <div className="rounded-[22px] border border-red-100 bg-red-50/70 p-6">
-            <p className="text-sm font-semibold text-red-900">Pré-visualização</p>
-            <BigNumber className="mt-2 text-red-700">{amount > 0 ? `-${formatBRLFine(amount)}` : "—"}</BigNumber>
+          <div className="rounded-[22px] border border-rose-200/90 bg-rose-50/80 p-6 dark:border-rose-900/50 dark:bg-rose-950/30">
+            <p className="text-sm font-semibold text-rose-900 dark:text-rose-100">Pré-visualização</p>
+            <BigNumber className="mt-2 text-rose-800 dark:text-rose-200/95">
+              {amount > 0 ? `-${formatBRLFine(amount)}` : "—"}
+            </BigNumber>
           </div>
-          {invalid && <p className="text-sm font-medium text-red-600">Preencha valor e descrição.</p>}
+          {invalid && (
+            <p className="text-sm font-medium text-rose-800 dark:text-rose-300/90">Preencha valor e descrição.</p>
+          )}
 
           <div className="mt-auto flex gap-3">
             <button type="button" onClick={close} className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">

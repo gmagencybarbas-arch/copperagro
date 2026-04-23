@@ -133,7 +133,7 @@ export default function PlanosPage() {
                 className={`mt-6 rounded-xl py-2 text-white transition-all ${
                   isCurrent
                     ? "cursor-not-allowed bg-gray-400 dark:bg-slate-600"
-                    : "bg-green-600 hover:bg-green-700 hover:scale-[1.01] active:scale-[0.98]"
+                    : "bg-[#166534] hover:bg-[#14532d] hover:scale-[1.01] active:scale-[0.98]"
                 }`}
               >
                 {isCurrent ? "Plano atual" : "Escolher plano"}

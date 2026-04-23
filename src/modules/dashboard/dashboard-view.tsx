@@ -172,7 +172,7 @@ function TrendDual({
       return <p className="text-[11px] text-gray-400">{label}: sem base</p>;
     }
     const positive = up;
-    const color = positive ? "text-[#15803d]" : "text-[#dc2626]";
+    const color = positive ? "text-[#166534]" : "text-rose-800";
     return (
       <p
         className={`flex items-center gap-1 text-[11px] font-semibold tabular-nums ${color}`}

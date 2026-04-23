@@ -50,7 +50,7 @@ function pctClass(n: number | null) {
   if (n === null || Number.isNaN(n))
     return "text-gray-400 dark:text-slate-500";
   if (n >= 0) return "text-emerald-700 dark:text-emerald-400";
-  return "text-red-600 dark:text-red-400";
+  return "text-rose-800 dark:text-rose-300/90";
 }
 
 export function SalesTable({ embed = false }: { embed?: boolean } = {}) {
@@ -790,7 +790,7 @@ function SaleDetailModal({
             </p>
           </div>
           {error && (
-            <p className="text-sm font-medium text-red-600">{error}</p>
+            <p className="text-sm font-medium text-rose-800 dark:text-rose-300/90">{error}</p>
           )}
         </div>
 
@@ -798,7 +798,7 @@ function SaleDetailModal({
           <button
             type="button"
             onClick={handleDelete}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200/90 bg-white px-4 py-2.5 text-sm font-semibold text-rose-800 shadow-sm transition-colors hover:bg-rose-50 dark:border-rose-800/50 dark:bg-slate-800 dark:text-rose-100 dark:hover:bg-slate-700"
           >
             <Trash2 className="h-4 w-4" strokeWidth={2} />
             Excluir

@@ -402,20 +402,32 @@ export function useTrendComparison() {
   );
 }
 
+/**
+ * Estoque e movimentos para um âmbito explícito (não lê o sector store).
+ * @param sectorId `null` = consolidação global (incl. stock base); string = só esse setor.
+ */
+export function computeStockSnapshot(
+  stockTotalSacas: number,
+  allMovements: StockMovement[],
+  sectorId: string | null,
+): StockState {
+  const scoped = sectorId
+    ? allMovements.filter((m) => m.sectorId === sectorId)
+    : allMovements;
+  return computeStockState(sectorId ? 0 : stockTotalSacas, scoped);
+}
+
 export function useStockSnapshot(): StockState {
   const stockTotalSacas = useSalesStore((s) => s.stockTotalSacas);
   const stockMovements = useSalesStore((s) => s.stockMovements);
   const selectedSectorId = useSectorStore((s) => s.selectedSectorId);
-  const scopedMovements = useMemo(() => {
-    if (!selectedSectorId) return stockMovements;
-    return stockMovements.filter((m) => m.sectorId === selectedSectorId);
-  }, [stockMovements, selectedSectorId]);
   return useMemo(
     () =>
-      computeStockState(
-        selectedSectorId ? 0 : stockTotalSacas,
-        scopedMovements,
+      computeStockSnapshot(
+        stockTotalSacas,
+        stockMovements,
+        selectedSectorId,
       ),
-    [selectedSectorId, scopedMovements, stockTotalSacas],
+    [selectedSectorId, stockMovements, stockTotalSacas],
   );
 }

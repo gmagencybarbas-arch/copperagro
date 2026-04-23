@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof matchMedia === "undefined") {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 type Props = {
   value: number;
   /** Casas decimais (arredondamento final) */
@@ -25,13 +32,20 @@ export function AnimatedNumber({
   useEffect(() => {
     const from = fromRef.current;
     const to = value;
+    if (prefersReducedMotion() || durationMs <= 0) {
+      fromRef.current = to;
+      setDisplay(to);
+      return;
+    }
+
+    const ms = Math.min(720, Math.max(280, durationMs));
     let startAt: number | null = null;
 
     const tick = (ts: number) => {
       if (startAt === null) startAt = ts;
       const elapsed = ts - startAt;
-      const t = Math.min(1, elapsed / durationMs);
-      const eased = 1 - (1 - t) ** 3;
+      const t = Math.min(1, elapsed / ms);
+      const eased = 1 - (1 - t) ** 4;
       const next = from + (to - from) * eased;
       setDisplay(next);
       if (t < 1) {

@@ -64,9 +64,9 @@ function MonthlyMovementChart({ data }: { data: MonthlyBucket[] }) {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-16 text-[11px] text-emerald-700">Entrada</span>
-              <div className="h-2 flex-1 rounded-full bg-gray-100">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                 <div
-                  className="h-2 rounded-full bg-emerald-500 transition-all duration-500"
+                  className="h-full rounded-full bg-green-600 transition-all duration-500 dark:bg-emerald-600"
                   style={{ width: `${Math.max(4, (row.entries / maxVal) * 100)}%` }}
                 />
               </div>
@@ -75,10 +75,10 @@ function MonthlyMovementChart({ data }: { data: MonthlyBucket[] }) {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-16 text-[11px] text-red-700">Saída</span>
-              <div className="h-2 flex-1 rounded-full bg-gray-100">
+              <span className="w-16 text-[11px] text-rose-800 dark:text-rose-300/85">Saída</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                 <div
-                  className="h-2 rounded-full bg-red-500 transition-all duration-500"
+                  className="h-full rounded-full bg-rose-500/80 transition-all duration-500"
                   style={{ width: `${Math.max(4, (row.exits / maxVal) * 100)}%` }}
                 />
               </div>
@@ -165,7 +165,7 @@ export function StockView() {
         <button
           type="button"
           onClick={openDrawer}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#16a34a] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-green-700 active:scale-[0.98]"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#166534] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[#14532d] active:scale-[0.98]"
         >
           <Plus className="h-[18px] w-[18px]" strokeWidth={2.25} />
           Adicionar estoque
@@ -180,7 +180,7 @@ export function StockView() {
             onClick={() => setSectorFilter("all")}
             className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
               sectorFilter === "all"
-                ? "bg-[#16a34a] text-white shadow-sm ring-1 ring-green-700/20"
+                ? "bg-[#166534] text-white shadow-sm ring-1 ring-[#14532d]/25"
                 : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"
             }`}
           >
@@ -193,7 +193,7 @@ export function StockView() {
               onClick={() => setSectorFilter(sector.id)}
               className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
                 sectorFilter === sector.id
-                  ? "bg-[#16a34a] text-white shadow-sm ring-1 ring-green-700/20"
+                  ? "bg-[#166534] text-white shadow-sm ring-1 ring-[#14532d]/25"
                   : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"
               }`}
             >
@@ -263,7 +263,7 @@ export function StockView() {
                   onClick={() => setTypeFilter(value)}
                   className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
                     typeFilter === value
-                      ? "bg-[#16a34a] text-white shadow-sm ring-1 ring-green-700/20"
+                      ? "bg-[#166534] text-white shadow-sm ring-1 ring-[#14532d]/25"
                       : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                   }`}
                 >
@@ -317,11 +317,11 @@ export function StockView() {
                         <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-800">{fmtDate.format(new Date(m.date))}</td>
                         <td className="px-4 py-3 text-gray-700">{movementSector?.name ?? "—"}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${entry ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>
+                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${entry ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200/90"}`}>
                             {entry ? "Entrada" : "Saída"}
                           </span>
                         </td>
-                        <td className={`px-4 py-3 text-right font-semibold tabular-nums ${entry ? "text-emerald-700" : "text-red-700"}`}>
+                        <td className={`px-4 py-3 text-right font-semibold tabular-nums ${entry ? "text-emerald-700 dark:text-emerald-300/90" : "text-rose-800 dark:text-rose-200/90"}`}>
                           {entry ? "+" : "−"}{new Intl.NumberFormat("pt-BR").format(m.quantity)}
                         </td>
                         <td className="px-4 py-3 text-gray-600">{pluralizeUnit(movementUnit, m.quantity)}</td>

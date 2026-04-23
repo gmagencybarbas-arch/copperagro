@@ -12,17 +12,36 @@
 @source "../**/*.{js,jsx,ts,tsx,mjs,mts,mdx}";
 
 @theme {
+  /* SaaS: fundo leve, verde florestal, “vermelho” desbotado (rose/terracota) */
   --color-app-bg: #f9fafb;
-  --color-app-green: #16a34a;
-  --color-app-red: #dc2626;
-  --color-dark-base: #030b14;
-  --color-dark-surface: #071523;
-  --color-dark-elevated: #0a1a2b;
-  --color-dark-border: rgba(64, 196, 255, 0.22);
-  --color-dark-glow: rgba(22, 163, 74, 0.28);
-  --color-dark-cyan: #22d3ee;
-  --color-dark-text: #d7f7ff;
+  --color-app-surface: #ffffff;
+  --color-app-border: #e5e7eb;
+  --color-app-green: #166534;
+  --color-app-green-bright: #16a34a;
+  /* Menos saturado que red puro — uso em despesas / alertas */
+  --color-app-rose: #9d4e4e;
+  --color-app-rose-muted: #b87a7a;
+  --color-app-red: #9d4e4e;
+  /* Dark: slate profissional, sem “neon / IA” */
+  --color-dark-base: #0f172a;
+  --color-dark-surface: #1e293b;
+  --color-dark-elevated: #334155;
+  --color-dark-border: rgba(148, 163, 184, 0.22);
+  --color-dark-text: #f1f5f9;
   --font-family-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Movimento: estética leve, tipo iOS / Apple HIG (rápido, sem “bouncy” exagerado) */
+  --ease-app: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-app-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-app-tap: 160ms;
+  --duration-app: 220ms;
+  --duration-app-panel: 300ms;
+}
+
+/* Curvas padrão fora de @theme (reuso em @keyframes) */
+:root {
+  --app-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --app-ease-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-app-tap: 160ms;
 }
 
 html,
@@ -31,24 +50,22 @@ body {
 }
 
 html.dark body {
-  background:
-    radial-gradient(1200px 640px at 8% -8%, rgba(34, 211, 238, 0.16), transparent 52%),
-    radial-gradient(1000px 700px at 90% 0%, rgba(22, 163, 74, 0.12), transparent 58%),
-    linear-gradient(165deg, #020812 0%, #04101b 48%, #030b14 100%);
+  background: var(--color-dark-base);
   color: var(--color-dark-text);
 }
 
+/* Card escuro: superfície sólida, borda sutil — sem glass/cyan */
+.dark .ds-surface {
+  border: 1px solid var(--color-dark-border);
+  background: var(--color-dark-surface);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.45);
+}
+
+/* Compat: alias do glass antigo */
 .dark .ds-glass {
   border: 1px solid var(--color-dark-border);
-  background: linear-gradient(
-    145deg,
-    color-mix(in oklab, var(--color-dark-surface) 88%, white 12%),
-    color-mix(in oklab, var(--color-dark-elevated) 92%, black 8%)
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 0 1px rgba(34, 211, 238, 0.08),
-    0 22px 44px -26px rgba(0, 0, 0, 0.75);
+  background: var(--color-dark-surface);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.45);
 }
 
 /*
@@ -58,7 +75,7 @@ html.dark body {
  */
 
 ::selection {
-  background-color: color-mix(in oklab, var(--color-app-green) 22%, transparent);
+  background-color: color-mix(in oklab, var(--color-app-green-bright) 22%, transparent);
 }
 
 /* CoopFinance splash */
@@ -95,20 +112,103 @@ html.dark body {
 @keyframes dash-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translate3d(0, 4px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 .animate-dash-enter {
-  animation: dash-enter 0.55s ease-out forwards;
+  animation: dash-enter 0.4s var(--app-ease) both;
+}
+
+/* Conteúdo principal ao trocar de rota: fade + leve deslize (App Shell) */
+@keyframes app-content-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.app-content-enter {
+  animation: app-content-enter 0.32s var(--app-ease) both;
+  will-change: opacity, transform;
+}
+
+/* Painel lateral (drawer): ligeiro deslize da direita ao abrir */
+@keyframes app-drawer-surface-in {
+  from {
+    transform: translate3d(10px, 0, 0);
+    opacity: 0.97;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.app-drawer-surface {
+  animation: app-drawer-surface-in 0.28s var(--app-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dash-enter,
+  .app-content-enter,
+  .coop-bean,
+  .coop-progress-fill {
+    animation: none !important;
+  }
+
+  .app-content-enter,
+  .app-drawer-surface {
+    will-change: auto;
+  }
+
+  .app-drawer-surface {
+    animation: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
+  }
+}
+
+/* Transições globais mínimas em elementos interactivos (leves, sem atraso perceptível) */
+@media (prefers-reduced-motion: no-preference) {
+  :where(
+      button,
+      a[href],
+      [role="button"],
+      [type="button"],
+      [type="submit"],
+      select,
+      summary
+    ) {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
+    transition-duration: var(--duration-app-tap, 160ms);
+    transition-timing-function: var(--app-ease);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+      button,
+      a[href],
+      [role="button"],
+      [type="button"],
+      [type="submit"],
+      select,
+      summary
+    ) {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }

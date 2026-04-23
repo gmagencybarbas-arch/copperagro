@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body
-        className={`${inter.variable} bg-[#f7f7f7] font-sans text-gray-900 antialiased dark:bg-transparent dark:text-cyan-50`}
+        className={`${inter.variable} bg-[#f9fafb] font-sans text-gray-900 antialiased dark:bg-slate-900 dark:text-slate-100`}
       >
         <ThemeProvider>{children}</ThemeProvider>
       </body>

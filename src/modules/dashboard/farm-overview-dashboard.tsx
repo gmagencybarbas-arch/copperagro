@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatedNumber } from "@/components/animated-number";
-import { BigNumber, Card, Title } from "@/design-system";
+import { BigNumber, Card, HeroCard, Title } from "@/design-system";
 import { formatBRL, formatBRLFine } from "@/lib/format";
 import { useExpenseStore } from "@/store/expense-store";
 import { useSectorStore } from "@/store/sector-store";
@@ -11,13 +11,12 @@ import {
   Activity,
   ArrowUpRight,
   Boxes,
-  DollarSign,
   HandCoins,
   LineChart,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 type RevenuePoint = { key: string; label: string; total: number };
 type SectorAgg = {
@@ -86,30 +85,73 @@ function RevenueLine({
   const innerW = w - p.l - p.r;
   const innerH = h - p.t - p.b;
   const maxY = Math.max(1, ...series.map((s) => s.total));
+  const [hovered, setHovered] = useState<number | null>(null);
+  const gradId = useId().replace(/:/g, "");
+  const fillGradId = `${gradId}-fill`;
+  const lineGradId = `${gradId}-line`;
+
   const pts = series.map((s, i) => {
     const x = p.l + (series.length <= 1 ? innerW / 2 : (i / (series.length - 1)) * innerW);
     const y = p.t + innerH - (s.total / maxY) * innerH;
     return { ...s, x, y };
   });
   const d = pts.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`).join(" ");
+  const bottomY = p.t + innerH;
+  const areaD =
+    pts.length > 0
+      ? `M ${pts[0]!.x} ${bottomY} ${pts.map((pt) => `L ${pt.x} ${pt.y}`).join(" ")} L ${pts[pts.length - 1]!.x} ${bottomY} Z`
+      : "";
 
   return (
-    <Card className="overflow-hidden rounded-[22px] border border-slate-800/90 bg-slate-950 p-5 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.06]">
+    <Card className="overflow-hidden border-slate-200 bg-white p-5 dark:border-slate-700/80 dark:bg-slate-900">
       <div className="mb-3 flex items-center gap-2">
-        <LineChart className="h-4 w-4 text-emerald-400" />
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+        <LineChart className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
           {title}
         </p>
       </div>
       {series.length === 0 ? (
-        <p className="py-10 text-center text-sm text-slate-500">
+        <p className="py-10 text-center text-sm text-gray-500 dark:text-slate-500">
           Sem dados suficientes para exibir evolução.
         </p>
       ) : (
-        <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full">
-          <path d={d} fill="none" stroke="#34d399" strokeWidth={3} />
-          {pts.map((pt) => (
-            <circle key={pt.key} cx={pt.x} cy={pt.y} r={3.5} fill="#6ee7b7" />
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          className="h-auto w-full transition-all duration-300"
+          onMouseLeave={() => setHovered(null)}
+        >
+          <defs>
+            <linearGradient id={fillGradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id={lineGradId} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#059669" />
+              <stop offset="100%" stopColor="#34d399" />
+            </linearGradient>
+          </defs>
+          <path d={areaD} fill={`url(#${fillGradId})`} className="transition-opacity duration-300" />
+          <path
+            d={d}
+            fill="none"
+            stroke={`url(#${lineGradId})`}
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-all duration-300"
+          />
+          {pts.map((pt, i) => (
+            <circle
+              key={pt.key}
+              cx={pt.x}
+              cy={pt.y}
+              r={hovered === i ? 6 : 4}
+              fill={hovered === i ? "#ecfdf5" : "#6ee7b7"}
+              stroke={hovered === i ? "#059669" : "#10b981"}
+              strokeWidth={hovered === i ? 2.5 : 1.5}
+              className="cursor-pointer transition-all duration-300"
+              onMouseEnter={() => setHovered(i)}
+            />
           ))}
         </svg>
       )}
@@ -144,7 +186,24 @@ export function FarmOverviewDashboard() {
     () => expenses.reduce((acc, e) => acc + e.amount, 0),
     [expenses],
   );
+  const globalExpenses = useMemo(
+    () => expenses.filter((e) => !e.sectorId),
+    [expenses],
+  );
+  const sectorExpenses = useMemo(
+    () => expenses.filter((e) => e.sectorId),
+    [expenses],
+  );
+  const globalExpensesTotal = useMemo(
+    () => globalExpenses.reduce((acc, e) => acc + e.amount, 0),
+    [globalExpenses],
+  );
+  const sectorExpensesTotal = useMemo(
+    () => sectorExpenses.reduce((acc, e) => acc + e.amount, 0),
+    [sectorExpenses],
+  );
   const netProfit = totalRevenue - totalExpenses;
+  const isDanger = totalExpenses > totalRevenue * 0.7;
 
   const revenueBySector = useMemo(
     () => [...sectorAgg].sort((a, b) => b.revenue - a.revenue),
@@ -153,6 +212,13 @@ export function FarmOverviewDashboard() {
   const maxSectorRevenue = Math.max(1, ...revenueBySector.map((s) => s.revenue));
 
   const globalSeries = useMemo(() => buildRevenueSeries(sales), [sales]);
+  const revenueGrowthPercent = useMemo(() => {
+    if (globalSeries.length < 2) return null;
+    const last = globalSeries[globalSeries.length - 1]!.total;
+    const prev = globalSeries[globalSeries.length - 2]!.total;
+    if (prev <= 0) return null;
+    return ((last - prev) / prev) * 100;
+  }, [globalSeries]);
   const bestByPrice = useMemo(
     () => [...sectorAgg].sort((a, b) => b.avgPrice - a.avgPrice)[0] ?? null,
     [sectorAgg],
@@ -199,13 +265,17 @@ export function FarmOverviewDashboard() {
       </header>
 
       <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        <Card className="rounded-[22px] border border-gray-100/90 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-          <Title className="text-gray-600">Faturamento total</Title>
-          <BigNumber className="mt-3 text-gray-900">
-            <AnimatedNumber value={totalRevenue} format={(n) => formatBRL(Math.round(n))} />
-          </BigNumber>
-          <DollarSign className="mt-2 h-4 w-4 text-gray-400" />
-        </Card>
+        <HeroCard
+          className="sm:col-span-2 xl:col-span-1"
+          title="Faturamento total"
+          value={<AnimatedNumber value={totalRevenue} format={(n) => formatBRL(Math.round(n))} />}
+          subtitle="Receita consolidada de todos os setores"
+          growth={
+            revenueGrowthPercent == null
+              ? undefined
+              : `${revenueGrowthPercent >= 0 ? "↑" : "↓"} ${Math.abs(revenueGrowthPercent).toFixed(1)}% vs. mês anterior`
+          }
+        />
 
         <Card className="rounded-[22px] border border-gray-100/90 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <Title className="text-gray-600">Unidades vendidas</Title>
@@ -237,26 +307,42 @@ export function FarmOverviewDashboard() {
           <p className="mt-1 text-xs text-gray-600">Soma consolidada dos setores</p>
         </Card>
 
-        <Card className="rounded-[22px] border border-amber-100/80 bg-gradient-to-br from-white to-amber-50/50 p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-          <Title className="text-gray-600">Despesas totais (mock)</Title>
-          <BigNumber className="mt-3 text-amber-950">
+        <Card className="rounded-[22px] border border-rose-200/90 bg-rose-50/90 p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-rose-900/40 dark:bg-rose-950/25">
+          <Title className="text-rose-700/90 dark:text-rose-300/90">Despesas totais</Title>
+          <BigNumber className="mt-3 text-rose-800 dark:text-rose-100/95">
             <AnimatedNumber value={totalExpenses} format={(n) => formatBRL(Math.round(n))} />
           </BigNumber>
-          <HandCoins className="mt-2 h-4 w-4 text-amber-700/80" />
+          <HandCoins className="mt-2 h-4 w-4 text-rose-600/80 dark:text-rose-400/70" />
+        </Card>
+
+        <Card className="rounded-[22px] border border-gray-200 bg-gray-100 p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+          <Title className="text-gray-500">Despesas gerais da fazenda</Title>
+          <BigNumber className="mt-3 text-gray-900">
+            <AnimatedNumber value={globalExpensesTotal} format={(n) => formatBRL(Math.round(n))} />
+          </BigNumber>
+          <p className="mt-1 text-xs text-gray-600">
+            Setoriais: {formatBRL(Math.round(sectorExpensesTotal))}
+          </p>
         </Card>
 
         <Card className="rounded-[22px] border border-gray-100/90 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <Title className="text-gray-600">Lucro líquido</Title>
-          <BigNumber className={`mt-3 ${netProfit >= 0 ? "text-emerald-800" : "text-red-700"}`}>
+          <BigNumber className={`mt-3 ${netProfit >= 0 ? "text-emerald-800" : "text-rose-800 dark:text-rose-200/90"}`}>
             <AnimatedNumber value={netProfit} format={(n) => formatBRL(Math.round(n))} />
           </BigNumber>
           {netProfit >= 0 ? (
             <TrendingUp className="mt-2 h-4 w-4 text-emerald-600" />
           ) : (
-            <TrendingDown className="mt-2 h-4 w-4 text-red-600" />
+            <TrendingDown className="mt-2 h-4 w-4 text-rose-600 dark:text-rose-400/80" />
           )}
         </Card>
       </section>
+
+      {isDanger && (
+        <div className="rounded-xl border border-rose-200/80 bg-rose-100/80 p-4 text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200/95">
+          ⚠️ Suas despesas estão consumindo mais de 70% da receita
+        </div>
+      )}
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Performance por setor</h2>
@@ -270,9 +356,9 @@ export function FarmOverviewDashboard() {
                     {formatBRL(Math.round(s.revenue))}
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-gray-100">
+                <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                   <div
-                    className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-green-400 transition-all duration-500"
+                    className="h-full rounded-full bg-green-600 transition-all duration-500 dark:bg-emerald-600"
                     style={{ width: `${Math.max(4, (s.revenue / maxSectorRevenue) * 100)}%` }}
                   />
                 </div>

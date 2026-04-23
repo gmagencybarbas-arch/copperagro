@@ -518,6 +518,28 @@ export function trailingWeeklyAvgBags(sales: Sale[]): number {
   return bags / Math.max(nWeeks, 1);
 }
 
+/**
+ * Faturamento médio por **semana ISO** (R$) nos últimos 28 dias até a venda mais recente.
+ */
+export function trailingWeeklyRevenue(sales: Sale[]): number {
+  if (sales.length === 0) return 0;
+  const latestTs = Math.max(
+    ...sales.map((s) => new Date(s.date).getTime()),
+  );
+  const windowStartTs = latestTs - 28 * 86400000;
+  const slice = sales.filter(
+    (s) => new Date(s.date).getTime() >= windowStartTs,
+  );
+  if (slice.length === 0) return 0;
+
+  const rev = slice.reduce((a, s) => a + s.totalPrice, 0);
+  const nWeeks = countIsoWeeksOverlapping(
+    new Date(windowStartTs),
+    new Date(latestTs),
+  );
+  return rev / Math.max(nWeeks, 1);
+}
+
 export function createDefaultSalesFilter(now: Date = new Date()): SalesFilterState {
   const y = now.getFullYear();
   const mo = now.getMonth() + 1;

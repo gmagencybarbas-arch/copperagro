@@ -1,6 +1,10 @@
 "use client";
 
-import type { Expense, ExpenseFilters } from "@/types/expense";
+import {
+  DEFAULT_EXPENSE_CATEGORY,
+  normalizeExpense,
+} from "@/lib/expense-migrate";
+import type { Expense, ExpenseCategory, ExpenseFilters } from "@/types/expense";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -66,11 +70,13 @@ export const useExpenseStore = create<ExpenseState>()(
         const amount = Number(input.amount);
         if (!Number.isFinite(amount) || amount <= 0) return;
         if (!input.description.trim()) return;
+        const category: ExpenseCategory = input.category ?? DEFAULT_EXPENSE_CATEGORY;
         const expense: Expense = {
           id: uid(),
           date: input.date || todayISO(),
           description: input.description.trim(),
           amount,
+          category,
           sectorId: input.sectorId || undefined,
         };
         set((s) => ({ expenses: [expense, ...s.expenses] }));
@@ -81,13 +87,23 @@ export const useExpenseStore = create<ExpenseState>()(
     }),
     {
       name: "coopfinance-expenses",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? localStorage : ssrMemoryStorage,
       ),
       partialize: (state) => ({
         expenses: state.expenses,
       }),
+      migrate: (persisted, version) => {
+        if (version < 2 && persisted && typeof persisted === "object" && "expenses" in persisted) {
+          const p = persisted as { expenses: unknown[]; filters?: ExpenseFilters };
+          return {
+            ...p,
+            expenses: p.expenses.map((e) => normalizeExpense(e as Expense)),
+          };
+        }
+        return persisted;
+      },
     },
   ),
 );

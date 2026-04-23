@@ -11,6 +11,7 @@ import {
 import { MonthlyBarChart } from "@/modules/dashboard/monthly-bar-chart";
 import { PriceLineChart } from "@/modules/dashboard/price-line-chart";
 import { SalesFilterBar } from "@/modules/dashboard/sales-filter-bar";
+import { SectorTabs } from "@/components/sector/sector-tabs";
 import { SalesTable } from "@/modules/sales/sales-table";
 import { formatBRL, formatBRLFine } from "@/lib/format";
 import { useExpenseStore } from "@/store/expense-store";
@@ -104,6 +105,9 @@ export function SectorVendasView() {
         <h1 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-slate-50">
           {selectedSector?.name ?? "Todos os setores"}
         </h1>
+        <div className="pt-1">
+          <SectorTabs />
+        </div>
         <p className="max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-slate-400">
           Desempenho comercial, tendência de preço e volume no período selecionado
           — com histórico detalhado e ações no mesmo sítio.
@@ -250,10 +254,10 @@ export function SectorVendasView() {
           <Card className="col-span-2 overflow-hidden rounded-[22px] border border-gray-200/90 bg-gradient-to-br from-white via-slate-50/50 to-white p-0 shadow-md ring-1 ring-gray-100/80 dark:border-slate-700 dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-950 dark:ring-slate-800 md:col-span-2">
             <div className="grid divide-y divide-gray-100 dark:divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
               <div className="p-6">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-red-600/90 dark:text-red-400">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-700/90 dark:text-rose-300/90">
                   Despesas do setor
                 </p>
-                <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-red-700 dark:text-red-400">
+                <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-rose-800 dark:text-rose-200/95">
                   <AnimatedNumber value={sectorExpenses} format={(n) => formatBRL(Math.round(n))} />
                 </p>
                 <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
@@ -268,7 +272,7 @@ export function SectorVendasView() {
                   className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${
                     sectorProfit >= 0
                       ? "text-emerald-800 dark:text-emerald-300"
-                      : "text-red-600 dark:text-red-400"
+                      : "text-rose-800 dark:text-rose-200/90"
                   }`}
                 >
                   {formatBRL(Math.round(sectorProfit))}
