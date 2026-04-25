@@ -1,5 +1,8 @@
 "use client";
 
+import { useAuthStore } from "@/store/auth-store";
+import { usePlanStore } from "@/store/plan-store";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const SPLASH_MS = 3000;
@@ -9,6 +12,10 @@ export function CoopFinanceGate({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const company = useAuthStore((s) => s.company);
+  const setPlan = usePlanStore((s) => s.setPlan);
   const [phase, setPhase] = useState<"splash" | "done">("splash");
 
   useEffect(() => {
@@ -16,7 +23,21 @@ export function CoopFinanceGate({
     return () => window.clearTimeout(t);
   }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (company) setPlan(company.plan);
+  }, [company, setPlan]);
+
   const splashVisible = phase === "splash";
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>

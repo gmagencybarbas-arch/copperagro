@@ -24,6 +24,7 @@ import type {
   AnalysesViewMode,
 } from "@/types/analytics";
 import type { Sale, StockMovement } from "@/types/sale";
+import type { Sector } from "@/types/sector";
 
 function sumRevenue(sales: Sale[]): number {
   return sales.reduce((a, s) => a + s.totalPrice, 0);
@@ -44,7 +45,7 @@ function buildSectorMetricsList(
   expenses: Expense[],
   stockTotalSacas: number,
   stockMovements: StockMovement[],
-  sectors: { id: string; name: string; unit: string }[],
+  sectors: Sector[],
 ): SectorMetrics[] {
   return sectors.map((sec) => {
     const sSales = sales.filter((s) => s.sectorId === sec.id);
@@ -114,7 +115,7 @@ function buildGlobalMetrics(
   expenses: Expense[],
   stockTotalSacas: number,
   stockMovements: StockMovement[],
-  sectors: { id: string; name: string; unit: string }[],
+  sectors: Sector[],
 ): GlobalMetrics {
   const totalRevenue = sumRevenue(sales);
   const totalExpenses = sumAllExpenses(expenses);
@@ -200,7 +201,7 @@ export function buildAnalyticsSnapshot(params: {
   expenses: Expense[];
   stockTotalSacas: number;
   stockMovements: StockMovement[];
-  sectors: { id: string; name: string; unit: string }[];
+  sectors: Sector[];
   viewMode: AnalysesViewMode;
   analysesSectorId: string;
 }): AnalyticsSnapshot {

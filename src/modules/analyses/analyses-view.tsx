@@ -13,7 +13,8 @@ import { formatBRL } from "@/lib/format";
 import { computeStockSnapshot } from "@/store/sales-store";
 import { useSalesStore } from "@/store/sales-store";
 import { useExpenseStore } from "@/store/expense-store";
-import { pluralizeUnit } from "@/store/sector-store";
+import { SECTOR_COLOR_TOKENS } from "@/lib/sector-palette";
+import { pluralizeUnit, useSectorStore } from "@/store/sector-store";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { KPIWithSparkline } from "./components/kpi-with-sparkline";
@@ -198,6 +199,7 @@ export function AnalysesView() {
   const stockTotalSacas = useSalesStore((s) => s.stockTotalSacas);
   const stockMovements = useSalesStore((s) => s.stockMovements);
   const expenses = useExpenseStore((s) => s.expenses);
+  const sectors = useSectorStore((s) => s.sectors);
 
   const g = snap.globalMetrics;
   const comp = snap.comparisons;
@@ -312,7 +314,7 @@ export function AnalysesView() {
       return withRev.map((m) => ({
         label: m.sectorName,
         value: m.totalRevenue,
-        color: "",
+        colorToken: sectors.find((s) => s.id === m.sectorId)?.color ?? "green",
       }));
     }
     if (!analysesSectorId) return [];
@@ -324,12 +326,12 @@ export function AnalysesView() {
     }
     return (Object.keys(by) as ExpenseCategory[])
       .filter((c) => (by[c] || 0) > 0)
-      .map((c) => ({
+      .map((c, i) => ({
         label: EXPENSE_CATEGORY_LABEL[c] ?? c,
         value: by[c]!,
-        color: "",
+        colorToken: SECTOR_COLOR_TOKENS[i % SECTOR_COLOR_TOKENS.length]!,
       }));
-  }, [viewMode, snap.sectorMetrics, expenses, analysesSectorId]);
+  }, [viewMode, snap.sectorMetrics, expenses, analysesSectorId, sectors]);
 
   const { primary: primaryInsight, secondary: secondaryInsights } = useMemo(
     () =>

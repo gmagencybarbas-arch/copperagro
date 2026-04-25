@@ -1,36 +1,27 @@
 "use client";
 
+import { SectorGlyph } from "@/components/sector/sector-icon";
+import { SECTOR_CHART_HEX } from "@/lib/sector-palette";
 import { PLANS } from "@/config/plans";
 import { usePlanStore } from "@/store/plan-store";
 import { useSectorStore } from "@/store/sector-store";
-import type { Sector } from "@/types/sector";
-import { Building2, Coffee, Milk, Plus, Sprout, X } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-
-const SECTOR_ICONS: Record<string, ReactNode> = {
-  cafe: <Coffee className="h-5 w-5 text-gray-600 dark:text-slate-300" strokeWidth={1.75} />,
-  leite: <Milk className="h-5 w-5 text-gray-600 dark:text-slate-300" strokeWidth={1.75} />,
-  bovino: <Building2 className="h-5 w-5 text-gray-600 dark:text-slate-300" strokeWidth={1.75} />,
-  hortifruti: <Sprout className="h-5 w-5 text-gray-600 dark:text-slate-300" strokeWidth={1.75} />,
-};
-
-function sectorIcon(s: Sector): ReactNode {
-  return SECTOR_ICONS[s.id] ?? <Building2 className="h-5 w-5 text-gray-500" strokeWidth={1.75} />;
-}
+import { Plus, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 type SectorSelectorModalProps = {
   open: boolean;
   onClose: () => void;
   onSelectSector: (sectorId: string) => void;
+  onRequestCreateSector?: () => void;
 };
 
 export function SectorSelectorModal({
   open,
   onClose,
   onSelectSector,
+  onRequestCreateSector,
 }: SectorSelectorModalProps) {
   const sectors = useSectorStore((s) => s.sectors);
-  const createSector = useSectorStore((s) => s.createSector);
   const currentPlan = usePlanStore((s) => s.currentPlan);
   const [entered, setEntered] = useState(false);
 
@@ -103,12 +94,27 @@ export function SectorSelectorModal({
               <button
                 type="button"
                 onClick={() => onSelectSector(s.id)}
-                className="flex w-full items-center gap-3 rounded-xl p-4 text-left text-base font-medium text-gray-900 transition-transform hover:bg-gray-100 active:scale-95 dark:text-slate-100 dark:hover:bg-slate-800"
+                className="flex w-full items-center gap-3 rounded-xl p-3 text-left text-base font-medium text-gray-900 transition-transform hover:bg-gray-100 active:scale-95 dark:text-slate-100 dark:hover:bg-slate-800"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 dark:bg-slate-800/80">
-                  {sectorIcon(s)}
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 dark:border-slate-600 dark:bg-slate-800/80"
+                  aria-hidden
+                >
+                  <SectorGlyph icon={s.icon} sectorId={s.id} className="h-5 w-5 text-gray-600 dark:text-slate-300" />
                 </span>
-                <span>{s.name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold leading-tight">{s.name}</span>
+                  <span
+                    className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-gray-500"
+                    aria-label={`cor ${s.color}`}
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: SECTOR_CHART_HEX[s.color] }}
+                    />
+                    {s.unit}
+                  </span>
+                </span>
               </button>
             </li>
           ))}
@@ -119,15 +125,17 @@ export function SectorSelectorModal({
             <button
               type="button"
               onClick={() => {
-                const name = window.prompt("Nome do novo setor", "");
-                if (!name?.trim()) return;
-                createSector({ name: name.trim(), unit: "saca" });
+                onClose();
+                onRequestCreateSector?.();
               }}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 py-3 text-sm font-semibold text-gray-800 transition-transform hover:border-gray-300 hover:bg-gray-100 active:scale-[0.99] dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <Plus className="h-4 w-4" />
               + Criar novo setor
             </button>
+            <p className="mt-2 text-center text-[10px] text-gray-500">
+              Cor automática. Ícone escolhido na biblioteca (ou padrão 📦).
+            </p>
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import type { PricePoint } from "@/modules/dashboard/chart-helpers";
 import { smoothLinePath } from "@/modules/dashboard/chart-path";
 import { formatBRL } from "@/lib/format";
 import type { PriceChartGranularity } from "@/types/sale";
+import { Coffee } from "lucide-react";
 import { useCallback, useId, useMemo, useState } from "react";
 
 export type PriceLineAxisMode = "year" | PriceChartGranularity;
@@ -518,9 +519,7 @@ function ChartEmpty({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="flex min-h-[13rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-600/60 bg-gradient-to-b from-slate-950 to-slate-900 px-6 py-10 text-center ring-1 ring-white/5">
       <div className="rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 shadow-inner">
-        <span className="text-2xl opacity-90" aria-hidden>
-          ☕
-        </span>
+        <Coffee className="h-6 w-6 opacity-90" strokeWidth={1.9} aria-hidden />
       </div>
       <div>
         <p className="font-mono text-sm font-semibold uppercase tracking-wide text-slate-300">

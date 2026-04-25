@@ -1,12 +1,16 @@
 "use client";
 
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { MobileMoreSheet } from "@/components/layout/mobile-more-sheet";
 import { ExpenseDrawer } from "@/components/expense-drawer/expense-drawer";
+import { SectorGlyph } from "@/components/sector/sector-icon";
+import { SectorCreateModal } from "@/components/sector-create-modal";
 import { SectorSelectorModal } from "@/components/sector/sector-selector-modal";
 import { SaleDrawer } from "@/components/sale-drawer/sale-drawer";
 import { StockEntryDrawer } from "@/components/stock-entry-drawer/stock-entry-drawer";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDrawerStore } from "@/store/drawer-store";
+import { usePlanStore } from "@/store/plan-store";
 import { useSalesStore } from "@/store/sales-store";
 import { DEFAULT_SECTOR_ID, useSectorStore } from "@/store/sector-store";
 import { useUIStore } from "@/store/ui-store";
@@ -17,9 +21,12 @@ import {
   FileBarChart,
   LayoutGrid,
   LineChart,
+  MoreHorizontal,
   PackageOpen,
   Plus,
+  Settings,
   Sprout,
+  UserRound,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -56,10 +63,10 @@ const nav = [
 /** Ordem: Painel, Análises, Vendas, Despesas, Estoque (Despesas logo após Vendas). */
 const mobileNav = [
   { href: "/dashboard", shortLabel: "Painel", Icon: LayoutGrid },
-  { href: "/analises", shortLabel: "Análises", Icon: LineChart },
   { href: `/setor/${DEFAULT_SECTOR_ID}` as const, shortLabel: "Vendas", Icon: ClipboardList },
   { href: "/despesas", shortLabel: "Despesas", Icon: Wallet },
   { href: "/estoque", shortLabel: "Estoque", Icon: PackageOpen },
+  { href: "#more", shortLabel: "Mais", Icon: MoreHorizontal },
 ] as const;
 
 const titles: Record<string, string> = {
@@ -103,10 +110,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sectors = useSectorStore((s) => s.sectors);
   const selectedSectorId = useSectorStore((s) => s.selectedSectorId);
   const setSelectedSector = useSectorStore((s) => s.setSelectedSector);
+  const createSector = useSectorStore((s) => s.createSector);
+  const currentPlan = usePlanStore((s) => s.currentPlan);
   const [salesOpen, setSalesOpen] = useState(true);
   const isMobile = useIsMobile();
   const [sectorModalOpen, setSectorModalOpen] = useState(false);
+  const [sectorCreateOpen, setSectorCreateOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [openSaleAfterSector, setOpenSaleAfterSector] = useState(false);
+  const [createFeedback, setCreateFeedback] = useState<string | null>(null);
 
   const handleSectorPicked = (sectorId: string) => {
     setSelectedSector(sectorId);
@@ -147,6 +159,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname === "/dashboard") return "Visão geral da operação";
     return "CoopFinance";
   }, [pathname]);
+
+  const activeSectorId = useMemo(() => {
+    if (pathname?.startsWith("/setor/")) {
+      return pathname.split("/")[2] ?? null;
+    }
+    return selectedSectorId;
+  }, [pathname, selectedSectorId]);
+
+  useEffect(() => {
+    if (!createFeedback) return;
+    const t = window.setTimeout(() => setCreateFeedback(null), 2400);
+    return () => window.clearTimeout(t);
+  }, [createFeedback]);
 
   useEffect(() => {
     useSalesStore.getState().ensureLedgerSynced();
@@ -246,16 +271,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       key={sector.id}
                       href={`/setor/${sector.id}`}
                       onClick={() => setSelectedSector(sector.id)}
-                      className={`block rounded-xl px-3 py-2 text-sm transition-colors ${
+                      className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
                         active
                           ? "border border-green-200 bg-green-50 font-medium text-green-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-200"
                           : "text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800/80"
                       }`}
                     >
-                      {sector.name}
+                      <span className="inline-flex h-5 w-5 items-center justify-center text-gray-500 dark:text-slate-300">
+                        <SectorGlyph icon={sector.icon} sectorId={sector.id} className="h-4 w-4" />
+                      </span>
+                      <span>{sector.name}</span>
                     </Link>
                   );
                 })}
+                {currentPlan === "infinity" ? (
+                  <button
+                    type="button"
+                    onClick={() => setSectorCreateOpen(true)}
+                    className="mt-2 w-full rounded-xl border border-dashed border-emerald-200 bg-emerald-50/60 px-3 py-2 text-left text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-50"
+                  >
+                    + Novo setor
+                  </button>
+                ) : (
+                  <p className="mt-2 px-1 text-[11px] text-gray-500">
+                    Disponível apenas no plano Infinity
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -291,6 +332,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <FileBarChart className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
             <span>Relatórios</span>
           </Link>
+          <Link
+            href="/conta"
+            className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
+          >
+            <UserRound className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+            <span>Conta</span>
+          </Link>
+          <Link
+            href="/configuracoes"
+            className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
+          >
+            <Settings className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+            <span>Configurações</span>
+          </Link>
           <button
             type="button"
             onClick={() => router.push("/planos")}
@@ -312,7 +367,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-gray-200/90 bg-white/90 px-4 py-3 backdrop-blur transition-[background-color,box-shadow,border-color,backdrop-filter] duration-200 ease-app dark:border-slate-700/80 dark:bg-slate-900/90 md:px-8 md:py-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100 sm:flex dark:bg-emerald-950/50">
-              <Sprout className="h-5 w-5 text-green-800 dark:text-emerald-400" strokeWidth={1.75} />
+              {pathname?.startsWith("/setor/") ? (
+                <SectorGlyph
+                  icon={sectors.find((s) => s.id === activeSectorId)?.icon}
+                  sectorId={activeSectorId ?? undefined}
+                  className="h-5 w-5 text-green-800 dark:text-emerald-400"
+                />
+              ) : (
+                <Sprout className="h-5 w-5 text-green-800 dark:text-emerald-400" strokeWidth={1.75} />
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-slate-500">
@@ -351,12 +414,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         aria-label="Navegação principal"
       >
         {mobileNav.map((item) => {
+          const isMore = item.href === "#more";
           const isSales = item.href.startsWith("/setor/");
           const active = isSales
             ? Boolean(pathname?.startsWith("/setor/"))
-            : pathname === item.href;
+            : isMore
+              ? moreOpen
+              : pathname === item.href;
           const isExpense = item.href === "/despesas";
           const Icon = item.Icon;
+
+          if (isMore) {
+            return (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() => setMoreOpen(true)}
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 transition-all duration-150 active:scale-[0.98] ${
+                  active ? "text-[#166534] dark:text-emerald-400/95" : "text-gray-500 dark:text-slate-500"
+                }`}
+              >
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-all duration-200 ${
+                    active
+                      ? "bg-[#166534] text-white shadow-sm shadow-emerald-900/20 ring-1 ring-[#14532d]/20"
+                      : "bg-gray-100/90 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
+                  }`}
+                  aria-hidden
+                >
+                  <Icon className="h-[18px] w-[18px]" strokeWidth={1.85} />
+                </span>
+                <span
+                  className={`max-w-full truncate text-[10px] font-semibold leading-tight ${
+                    active ? "text-[#14532d] dark:text-emerald-300/90" : "text-gray-500"
+                  }`}
+                >
+                  {item.shortLabel}
+                </span>
+              </button>
+            );
+          }
 
           if (isSales) {
             return (
@@ -443,7 +540,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           setOpenSaleAfterSector(false);
         }}
         onSelectSector={handleSectorPicked}
+        onRequestCreateSector={() => setSectorCreateOpen(true)}
       />
+      <SectorCreateModal
+        open={sectorCreateOpen}
+        onClose={() => setSectorCreateOpen(false)}
+        onSubmit={(input) => {
+          const id = createSector(input);
+          if (!id) return;
+          setSelectedSector(id);
+          setSectorCreateOpen(false);
+          router.push(`/setor/${id}`);
+          setCreateFeedback(`Setor "${input.name}" criado com sucesso`);
+        }}
+      />
+      <MobileMoreSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+      />
+      {createFeedback && (
+        <div className="fixed right-4 top-4 z-[90] rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 shadow-md">
+          {createFeedback}
+        </div>
+      )}
       <SaleDrawer />
       <StockEntryDrawer />
       <ExpenseDrawer />

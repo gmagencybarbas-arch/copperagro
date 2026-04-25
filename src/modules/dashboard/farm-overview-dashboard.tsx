@@ -1,12 +1,15 @@
 "use client";
 
 import { AnimatedNumber } from "@/components/animated-number";
+import { SectorGlyph } from "@/components/sector/sector-icon";
 import { BigNumber, Card, HeroCard, Title } from "@/design-system";
 import { formatBRL, formatBRLFine } from "@/lib/format";
 import { useExpenseStore } from "@/store/expense-store";
 import { useSectorStore } from "@/store/sector-store";
+import { SECTOR_CHART_HEX } from "@/lib/sector-palette";
 import { useSalesStore, useStockSnapshot } from "@/store/sales-store";
 import { type Sale } from "@/types/sale";
+import type { Sector, SectorColorToken } from "@/types/sector";
 import {
   Activity,
   ArrowUpRight,
@@ -22,6 +25,8 @@ type RevenuePoint = { key: string; label: string; total: number };
 type SectorAgg = {
   id: string;
   name: string;
+  icon: string;
+  colorToken: SectorColorToken;
   revenue: number;
   quantity: number;
   avgPrice: number;
@@ -59,16 +64,21 @@ function buildRevenueSeries(sales: Sale[]): RevenuePoint[] {
     .map(([key, total]) => ({ key, total, label: labels.get(key) ?? key }));
 }
 
-function buildSectorAgg(
-  sales: Sale[],
-  sectors: { id: string; name: string }[],
-): SectorAgg[] {
+function buildSectorAgg(sales: Sale[], sectors: Sector[]): SectorAgg[] {
   return sectors.map((sector) => {
     const list = sales.filter((s) => s.sectorId === sector.id);
     const revenue = list.reduce((acc, s) => acc + s.totalPrice, 0);
     const quantity = list.reduce((acc, s) => acc + s.quantity, 0);
     const avgPrice = quantity > 0 ? revenue / quantity : 0;
-    return { id: sector.id, name: sector.name, revenue, quantity, avgPrice };
+    return {
+      id: sector.id,
+      name: sector.name,
+      icon: sector.icon,
+      colorToken: sector.color,
+      revenue,
+      quantity,
+      avgPrice,
+    };
   });
 }
 
@@ -350,16 +360,27 @@ export function FarmOverviewDashboard() {
           <div className="space-y-4">
             {revenueBySector.map((s) => (
               <div key={s.id} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-700">{s.name}</span>
-                  <span className="font-semibold tabular-nums text-gray-900">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="flex min-w-0 items-center gap-2 font-medium text-gray-800 dark:text-slate-200">
+                    <SectorGlyph icon={s.icon} sectorId={s.id} className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{s.name}</span>
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full opacity-80"
+                      style={{ background: SECTOR_CHART_HEX[s.colorToken] }}
+                      aria-hidden
+                    />
+                  </span>
+                  <span className="shrink-0 font-semibold tabular-nums text-gray-900">
                     {formatBRL(Math.round(s.revenue))}
                   </span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                   <div
-                    className="h-full rounded-full bg-green-600 transition-all duration-500 dark:bg-emerald-600"
-                    style={{ width: `${Math.max(4, (s.revenue / maxSectorRevenue) * 100)}%` }}
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.max(4, (s.revenue / maxSectorRevenue) * 100)}%`,
+                      background: SECTOR_CHART_HEX[s.colorToken],
+                    }}
                   />
                 </div>
               </div>

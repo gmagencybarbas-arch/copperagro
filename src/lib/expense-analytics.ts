@@ -1,5 +1,6 @@
 import type { Expense, ExpenseCategory } from "@/types/expense";
 import { EXPENSE_CATEGORY_LABEL } from "@/types/expense";
+import type { SectorColorToken } from "@/types/sector";
 import type { Sale } from "@/types/sale";
 
 export function inDateRange(
@@ -32,11 +33,18 @@ export function totalAmount(list: Expense[]): number {
   return list.reduce((a, e) => a + e.amount, 0);
 }
 
-export type SectorBarRow = { sectorId: string; label: string; total: number };
+export type SectorBarRow = {
+  sectorId: string;
+  label: string;
+  total: number;
+  /** Token de cor do setor (coerente com gráficos); "global" usa cor reservada no gráfico */
+  colorToken: SectorColorToken;
+};
 
 export function bySectorBars(
   expenses: Expense[],
   sectorName: (id: string | undefined) => string,
+  sectorColor: (id: string | undefined) => SectorColorToken,
 ): SectorBarRow[] {
   const map = new Map<string, number>();
   for (const e of expenses) {
@@ -49,6 +57,7 @@ export function bySectorBars(
       label:
         sectorId === "global" ? sectorName(undefined) : sectorName(sectorId),
       total,
+      colorToken: sectorColor(sectorId === "global" ? undefined : sectorId),
     }))
     .sort((a, b) => b.total - a.total);
 }

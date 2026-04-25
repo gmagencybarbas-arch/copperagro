@@ -12,24 +12,28 @@ import {
   totalUnitsSold,
   trendCompareLast30d,
 } from "@/lib/expense-analytics";
+import { NON_SECTOR_PIE_COLOR } from "@/lib/sector-palette";
 import { formatBRLFine } from "@/lib/format";
 import { useExpenseStore } from "@/store/expense-store";
 import { useSalesStore } from "@/store/sales-store";
 import { useDrawerStore } from "@/store/drawer-store";
 import { useSectorStore } from "@/store/sector-store";
 import { EXPENSE_CATEGORY_LABEL, type Expense } from "@/types/expense";
+import type { Sector, SectorColorToken } from "@/types/sector";
 import { BarChart3, ChevronDown, LayoutDashboard } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ExpenseByCategoryChart } from "./expense-by-category-chart";
 import { ExpenseBySectorChart } from "./expense-by-sector-chart";
 import { ExpenseLineChart } from "./expense-line-chart";
 
-function sectorNameFromId(
-  sectors: { id: string; name: string }[],
-  id?: string,
-): string {
+function sectorNameFromId(sectors: Sector[], id?: string): string {
   if (!id) return "Fazenda (global)";
   return sectors.find((s) => s.id === id)?.name ?? "Setor";
+}
+
+function sectorColorFromId(sectors: Sector[], id?: string): SectorColorToken {
+  if (!id) return NON_SECTOR_PIE_COLOR;
+  return sectors.find((s) => s.id === id)?.color ?? "green";
 }
 
 export function ExpensesView() {
@@ -60,7 +64,12 @@ export function ExpensesView() {
   );
 
   const sectorBars = useMemo(
-    () => bySectorBars(rows, (id) => sectorNameFromId(sectors, id)),
+    () =>
+      bySectorBars(
+        rows,
+        (id) => sectorNameFromId(sectors, id),
+        (id) => sectorColorFromId(sectors, id),
+      ),
     [rows, sectors],
   );
 
@@ -138,9 +147,7 @@ export function ExpensesView() {
               <option value="all">Todos</option>
               <option value="global">Fazenda (global)</option>
               {sectors.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>

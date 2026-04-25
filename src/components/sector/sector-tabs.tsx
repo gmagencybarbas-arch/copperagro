@@ -1,11 +1,12 @@
 "use client";
 
+import { SECTOR_TAB_ACTIVE } from "@/lib/sector-palette";
 import { useSectorStore } from "@/store/sector-store";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 /**
- * Navegação horizontal entre setores (estilo abas) na vista de vendas.
+ * Navegação entre setores com reforço por cor na aba ativa.
  */
 export function SectorTabs() {
   const router = useRouter();
@@ -23,25 +24,30 @@ export function SectorTabs() {
   return (
     <div
       className="flex gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      role="tablist"
+      aria-label="Setores"
     >
       {sectors.map((s) => {
         const active = s.id === id;
+        const activeCls = SECTOR_TAB_ACTIVE[s.color] ?? SECTOR_TAB_ACTIVE.green;
         return (
           <button
             id={`sector-tab-${s.id}`}
             key={s.id}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => {
               setSelectedSector(s.id);
               router.push(`/setor/${s.id}`);
             }}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 ease-app active:scale-95 ${
+            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 ease-app active:scale-95 ${
               active
-                ? "scale-[1.02] bg-green-600 text-white shadow-md ring-1 ring-green-600/30 dark:bg-emerald-600"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            }`}
+                ? `scale-[1.02] ${activeCls}`
+                : "border border-gray-200/90 bg-white text-gray-800 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:bg-slate-700"
+            } `}
           >
-            {s.name}
+            <span>{s.name}</span>
           </button>
         );
       })}

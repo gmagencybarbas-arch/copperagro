@@ -1,9 +1,15 @@
 "use client";
 
+import { SECTOR_CHART_HEX, SECTOR_COLOR_TOKENS } from "@/lib/sector-palette";
+import type { SectorColorToken } from "@/types/sector";
 import { useMemo } from "react";
-import { AN } from "./analytics-tokens";
 
-export type PieSlice = { label: string; value: number; color: string };
+export type PieSlice = {
+  label: string;
+  value: number;
+  /** Sempre token — mesma cor em todos os gráficos para o mesmo setor */
+  colorToken: SectorColorToken;
+};
 
 type Props = {
   title: string;
@@ -26,29 +32,24 @@ function polar(
   return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
 }
 
-const PALETTE = [
-  AN.green,
-  "#3d8f7a",
-  AN.red,
-  "#7c6b9e",
-  "#c4a35a",
-  "#5a7a8a",
-];
+function hexForSlice(s: PieSlice, index: number): string {
+  return SECTOR_CHART_HEX[s.colorToken] ?? SECTOR_CHART_HEX[SECTOR_COLOR_TOKENS[index % SECTOR_COLOR_TOKENS.length]!]!;
+}
 
 export function PieDistributionChart({ title, slices, size = 200 }: Props) {
   const { withPct } = useMemo(() => {
     const t = slices.reduce((a, s) => a + s.value, 0) || 1;
     let start = -Math.PI / 2;
-    const out: { path: string; slice: PieSlice; pct: number; color: string }[] = [];
+    const out: { path: string; slice: PieSlice; pct: number; hex: string }[] = [];
     slices.forEach((s, i) => {
       const angle = (s.value / t) * 2 * Math.PI;
       const end = start + angle;
-      const col = s.color || PALETTE[i % PALETTE.length]!;
+      const hex = hexForSlice(s, i);
       out.push({
         path: polar(100, 100, 90, start, end),
         slice: s,
         pct: (s.value / t) * 100,
-        color: col,
+        hex,
       });
       start = end;
     });
@@ -79,7 +80,7 @@ export function PieDistributionChart({ title, slices, size = 200 }: Props) {
             <path
               key={p.slice.label + p.pct}
               d={p.path}
-              fill={p.color}
+              fill={p.hex}
               stroke="white"
               strokeWidth="1.5"
               className="transition-opacity hover:opacity-90"
@@ -92,7 +93,7 @@ export function PieDistributionChart({ title, slices, size = 200 }: Props) {
               <span className="flex min-w-0 items-center gap-2">
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                  style={{ background: p.color }}
+                  style={{ background: p.hex }}
                 />
                 <span className="truncate text-slate-800 dark:text-slate-200">
                   {p.slice.label}
@@ -109,5 +110,4 @@ export function PieDistributionChart({ title, slices, size = 200 }: Props) {
   );
 }
 
-/** Alias pedido no design (gráfico circular de distribuição) */
 export { PieDistributionChart as PieChart };
