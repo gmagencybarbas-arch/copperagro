@@ -4,7 +4,7 @@ import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/types/expense";
 import { useExpenseStore } from "@/store/expense-store";
 import { useSalesStore } from "@/store/sales-store";
 import { useSectorStore } from "@/store/sector-store";
-import { Check, Mic, Pencil, Send, Square, X } from "lucide-react";
+import { Check, Mic, Pencil, Send, Sprout, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type LaunchType = "sale" | "expense" | "stock";
@@ -43,6 +43,12 @@ function formatDateBR(iso: string) {
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
   return `${d}/${m}/${y}`;
+}
+
+function formatClock(totalSec: number) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function cardPrompt(d: LaunchDraft) {
@@ -107,6 +113,20 @@ function normalizeDraft(
   };
 }
 
+function WaveBars({ levels }: { levels: number[] }) {
+  return (
+    <div className="flex h-8 flex-1 items-center gap-[3px] px-1" aria-hidden>
+      {levels.map((h, i) => (
+        <span
+          key={i}
+          className="w-[3px] rounded-full bg-rose-500"
+          style={{ height: `${Math.max(4, Math.min(28, h))}px` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function AgroAiChat() {
   const sectors = useSectorStore((s) => s.sectors);
   const addSale = useSalesStore((s) => s.addSale);
@@ -123,14 +143,38 @@ export function AgroAiChat() {
   ]);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const [levels, setLevels] = useState<number[]>(() => Array.from({ length: 28 }, () => 6));
   const [editingId, setEditingId] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number>(0);
+  const recTimer = useRef<number>(0);
+  const discardRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [lines, busy]);
+  }, [lines, busy, recording]);
+
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
+  }, [input]);
+
+  useEffect(() => {
+    return () => {
+      window.clearInterval(recTimer.current);
+      cancelAnimationFrame(rafRef.current);
+      audioCtxRef.current?.close().catch(() => undefined);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
 
   const push = (line: ChatLine) => setLines((prev) => [...prev, line]);
   const updateDraft = (localId: string, patch: Partial<LaunchDraft>) => {
@@ -278,24 +322,40 @@ export function AgroAiChat() {
     }
   };
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendText = () => {
     const t = input.trim();
-    if (!t || busy) return;
+    if (!t || busy || recording) return;
     setInput("");
+    if (taRef.current) taRef.current.style.height = "44px";
     void parseText(t);
+  };
+
+  const stopWave = () => {
+    cancelAnimationFrame(rafRef.current);
+    window.clearInterval(recTimer.current);
+    void audioCtxRef.current?.close();
+    audioCtxRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setRecording(false);
+    setRecSeconds(0);
+    setLevels(Array.from({ length: 28 }, () => 6));
   };
 
   const startRec = async () => {
     try {
+      discardRef.current = false;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const rec = new MediaRecorder(stream);
       chunks.current = [];
       rec.ondataavailable = (ev) => {
         if (ev.data.size) chunks.current.push(ev.data);
       };
       rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
+        const dropped = discardRef.current;
+        stopWave();
+        if (dropped) return;
         const blob = new Blob(chunks.current, { type: rec.mimeType || "audio/webm" });
         setBusy(true);
         try {
@@ -328,6 +388,32 @@ export function AgroAiChat() {
       recorder.current = rec;
       rec.start();
       setRecording(true);
+      setRecSeconds(0);
+      recTimer.current = window.setInterval(() => {
+        setRecSeconds((n) => n + 1);
+      }, 1000);
+
+      const Ctx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      const ctx = new Ctx();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        const slice = Array.from({ length: 28 }, (_, i) => {
+          const v = data[i + 2] ?? 0;
+          return 5 + (v / 255) * 24;
+        });
+        setLevels(slice);
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
     } catch {
       push({
         id: uid(),
@@ -337,20 +423,43 @@ export function AgroAiChat() {
     }
   };
 
-  const stopRec = () => {
+  const finishRec = () => {
+    discardRef.current = false;
     recorder.current?.stop();
     recorder.current = null;
-    setRecording(false);
   };
 
+  const cancelRec = () => {
+    discardRef.current = true;
+    recorder.current?.stop();
+    recorder.current = null;
+  };
+
+  const fieldClass =
+    "mt-1 w-full rounded-lg border border-black/5 bg-white px-2 py-1.5 text-sm dark:border-white/10 dark:bg-slate-800";
+
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5">
+    <div className="mx-auto flex h-[calc(100dvh-10.5rem)] max-w-2xl flex-col overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_12px_40px_-24px_rgba(15,23,42,0.45)] dark:border-white/10 dark:bg-slate-900 md:h-[calc(100dvh-8.5rem)]">
+      <header className="flex shrink-0 items-center gap-3 border-b border-black/5 bg-[#f0f2f5] px-4 py-2.5 dark:border-white/10 dark:bg-slate-800">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#166534] text-white">
+          <Sprout className="h-5 w-5" strokeWidth={1.8} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-900 dark:text-slate-50">
+            AGRO AI
+          </p>
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+            {busy ? "a escrever..." : recording ? "a ouvir..." : "online"}
+          </p>
+        </div>
+      </header>
+
+      <div className="agro-chat-paper flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
         {lines.map((line) => {
           if (line.role === "user") {
             return (
               <div key={line.id} className="flex justify-end">
-                <p className="max-w-[85%] rounded-2xl rounded-br-md bg-[#166534] px-4 py-2 text-sm text-white">
+                <p className="max-w-[82%] rounded-2xl rounded-br-sm bg-[#d9fdd3] px-3 py-2 text-[15px] leading-snug text-gray-900 shadow-sm">
                   {line.text}
                 </p>
               </div>
@@ -359,7 +468,7 @@ export function AgroAiChat() {
           if (line.role === "bot") {
             return (
               <div key={line.id} className="flex justify-start">
-                <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-gray-100 px-4 py-2 text-sm text-gray-800 dark:bg-slate-800 dark:text-slate-100">
+                <p className="max-w-[82%] rounded-2xl rounded-bl-sm bg-white px-3 py-2 text-[15px] leading-snug text-gray-800 shadow-sm dark:bg-slate-800 dark:text-slate-100">
                   {line.text}
                 </p>
               </div>
@@ -368,249 +477,289 @@ export function AgroAiChat() {
           const d = line.draft;
           const editing = editingId === d.localId;
           return (
-            <div
-              key={line.id}
-              className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-            >
-              <p className="text-sm font-medium text-gray-900 dark:text-slate-50">
-                {cardPrompt(d)}
-              </p>
-              {editing && (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <label className="text-xs text-gray-500">
-                    Setor
-                    <select
-                      className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                      value={d.sectorId}
-                      onChange={(e) => {
-                        const s = sectors.find((x) => x.id === e.target.value);
-                        updateDraft(d.localId, {
-                          sectorId: e.target.value,
-                          sectorName: s?.name ?? d.sectorName,
-                        });
-                      }}
-                    >
-                      <option value="">Escolher</option>
-                      {sectors.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs text-gray-500">
-                    Data
-                    <input
-                      type="date"
-                      className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                      value={d.date}
-                      onChange={(e) =>
-                        updateDraft(d.localId, { date: e.target.value })
-                      }
-                    />
-                  </label>
-                  {d.type === "sale" && (
-                    <>
-                      <label className="text-xs text-gray-500">
-                        Quantidade
-                        <input
-                          type="number"
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.quantity ?? ""}
-                          onChange={(e) =>
-                            updateDraft(d.localId, {
-                              quantity: Number(e.target.value) || null,
-                            })
-                          }
-                        />
-                      </label>
-                      <label className="text-xs text-gray-500">
-                        Preço unitário
-                        <input
-                          type="number"
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.unitPrice ?? ""}
-                          onChange={(e) =>
-                            updateDraft(d.localId, {
-                              unitPrice: Number(e.target.value) || null,
-                            })
-                          }
-                        />
-                      </label>
-                      <label className="text-xs text-gray-500 sm:col-span-2">
-                        Comprador
-                        <input
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.buyer}
-                          onChange={(e) =>
-                            updateDraft(d.localId, { buyer: e.target.value })
-                          }
-                        />
-                      </label>
-                    </>
-                  )}
-                  {d.type === "expense" && (
-                    <>
-                      <label className="text-xs text-gray-500">
-                        Valor
-                        <input
-                          type="number"
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.amount ?? ""}
-                          onChange={(e) =>
-                            updateDraft(d.localId, {
-                              amount: Number(e.target.value) || null,
-                            })
-                          }
-                        />
-                      </label>
-                      <label className="text-xs text-gray-500">
-                        Categoria
-                        <select
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.category ?? "outros"}
-                          onChange={(e) =>
-                            updateDraft(d.localId, {
-                              category: e.target.value as ExpenseCategory,
-                            })
-                          }
-                        >
-                          {EXPENSE_CATEGORIES.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="text-xs text-gray-500 sm:col-span-2">
-                        Observação
-                        <input
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.description}
-                          onChange={(e) =>
-                            updateDraft(d.localId, {
-                              description: e.target.value,
-                            })
-                          }
-                        />
-                      </label>
-                    </>
-                  )}
-                  {d.type === "stock" && (
-                    <>
-                      <label className="text-xs text-gray-500">
-                        Quantidade
-                        <input
-                          type="number"
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.quantity ?? ""}
-                          onChange={(e) =>
-                            updateDraft(d.localId, {
-                              quantity: Number(e.target.value) || null,
-                            })
-                          }
-                        />
-                      </label>
-                      <label className="text-xs text-gray-500">
-                        Tipo
-                        <select
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.stockType ?? "entry"}
-                          onChange={(e) =>
-                            updateDraft(d.localId, {
-                              stockType: e.target.value as "entry" | "exit",
-                            })
-                          }
-                        >
-                          <option value="entry">Entrada</option>
-                          <option value="exit">Saída</option>
-                        </select>
-                      </label>
-                      <label className="text-xs text-gray-500 sm:col-span-2">
-                        Observação
-                        <input
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-                          value={d.note}
-                          onChange={(e) =>
-                            updateDraft(d.localId, { note: e.target.value })
-                          }
-                        />
-                      </label>
-                    </>
-                  )}
+            <div key={line.id} className="flex justify-start">
+              <div className="max-w-[90%] rounded-2xl rounded-bl-sm bg-white p-3 shadow-sm dark:bg-slate-800">
+                <p className="text-[15px] leading-snug text-gray-800 dark:text-slate-100">
+                  {cardPrompt(d)}
+                </p>
+                {editing && (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <label className="text-xs text-gray-500">
+                      Setor
+                      <select
+                        className={fieldClass}
+                        value={d.sectorId}
+                        onChange={(e) => {
+                          const s = sectors.find((x) => x.id === e.target.value);
+                          updateDraft(d.localId, {
+                            sectorId: e.target.value,
+                            sectorName: s?.name ?? d.sectorName,
+                          });
+                        }}
+                      >
+                        <option value="">Escolher</option>
+                        {sectors.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs text-gray-500">
+                      Data
+                      <input
+                        type="date"
+                        className={fieldClass}
+                        value={d.date}
+                        onChange={(e) =>
+                          updateDraft(d.localId, { date: e.target.value })
+                        }
+                      />
+                    </label>
+                    {d.type === "sale" && (
+                      <>
+                        <label className="text-xs text-gray-500">
+                          Quantidade
+                          <input
+                            type="number"
+                            className={fieldClass}
+                            value={d.quantity ?? ""}
+                            onChange={(e) =>
+                              updateDraft(d.localId, {
+                                quantity: Number(e.target.value) || null,
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="text-xs text-gray-500">
+                          Preço unitário
+                          <input
+                            type="number"
+                            className={fieldClass}
+                            value={d.unitPrice ?? ""}
+                            onChange={(e) =>
+                              updateDraft(d.localId, {
+                                unitPrice: Number(e.target.value) || null,
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="text-xs text-gray-500 sm:col-span-2">
+                          Comprador
+                          <input
+                            className={fieldClass}
+                            value={d.buyer}
+                            onChange={(e) =>
+                              updateDraft(d.localId, { buyer: e.target.value })
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
+                    {d.type === "expense" && (
+                      <>
+                        <label className="text-xs text-gray-500">
+                          Valor
+                          <input
+                            type="number"
+                            className={fieldClass}
+                            value={d.amount ?? ""}
+                            onChange={(e) =>
+                              updateDraft(d.localId, {
+                                amount: Number(e.target.value) || null,
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="text-xs text-gray-500">
+                          Categoria
+                          <select
+                            className={fieldClass}
+                            value={d.category ?? "outros"}
+                            onChange={(e) =>
+                              updateDraft(d.localId, {
+                                category: e.target.value as ExpenseCategory,
+                              })
+                            }
+                          >
+                            {EXPENSE_CATEGORIES.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-xs text-gray-500 sm:col-span-2">
+                          Observação
+                          <input
+                            className={fieldClass}
+                            value={d.description}
+                            onChange={(e) =>
+                              updateDraft(d.localId, {
+                                description: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
+                    {d.type === "stock" && (
+                      <>
+                        <label className="text-xs text-gray-500">
+                          Quantidade
+                          <input
+                            type="number"
+                            className={fieldClass}
+                            value={d.quantity ?? ""}
+                            onChange={(e) =>
+                              updateDraft(d.localId, {
+                                quantity: Number(e.target.value) || null,
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="text-xs text-gray-500">
+                          Tipo
+                          <select
+                            className={fieldClass}
+                            value={d.stockType ?? "entry"}
+                            onChange={(e) =>
+                              updateDraft(d.localId, {
+                                stockType: e.target.value as "entry" | "exit",
+                              })
+                            }
+                          >
+                            <option value="entry">Entrada</option>
+                            <option value="exit">Saída</option>
+                          </select>
+                        </label>
+                        <label className="text-xs text-gray-500 sm:col-span-2">
+                          Observação
+                          <input
+                            className={fieldClass}
+                            value={d.note}
+                            onChange={(e) =>
+                              updateDraft(d.localId, { note: e.target.value })
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => commitDraft(d)}
+                    className="inline-flex items-center gap-1 rounded-full bg-[#166534] px-3 py-1.5 text-xs font-semibold text-white"
+                  >
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.2} />
+                    Confirmar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(editing ? null : d.localId)}
+                    className="inline-flex items-center gap-1 rounded-full bg-black/5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:bg-white/10 dark:text-slate-100"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dismissDraft(d)}
+                    className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-500"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Cancelar
+                  </button>
                 </div>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => commitDraft(d)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[#166534] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#14532d]"
-                >
-                  <Check className="h-3.5 w-3.5" strokeWidth={2.2} />
-                  Confirmar
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEditingId(editing ? null : d.localId)
-                  }
-                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => dismissDraft(d)}
-                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-rose-700"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Cancelar
-                </button>
               </div>
             </div>
           );
         })}
         {busy && (
-          <p className="text-xs text-gray-400">A AGRO AI está a ler...</p>
+          <div className="flex justify-start">
+            <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white px-3 py-2.5 shadow-sm dark:bg-slate-800">
+              <span className="agro-typing-dot h-1.5 w-1.5 rounded-full bg-gray-400" />
+              <span className="agro-typing-dot h-1.5 w-1.5 rounded-full bg-gray-400 [animation-delay:120ms]" />
+              <span className="agro-typing-dot h-1.5 w-1.5 rounded-full bg-gray-400 [animation-delay:240ms]" />
+            </div>
+          </div>
         )}
         <div ref={bottomRef} />
       </div>
+
       <form
-        onSubmit={onSubmit}
-        className="flex items-end gap-2 border-t border-gray-100 p-3 dark:border-slate-800"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (recording) {
+            finishRec();
+            return;
+          }
+          sendText();
+        }}
+        className="flex shrink-0 items-end gap-2 bg-[#f0f2f5] px-3 py-2.5 dark:bg-slate-800"
       >
-        <button
-          type="button"
-          onClick={recording ? stopRec : startRec}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-            recording
-              ? "bg-rose-600 text-white"
-              : "border border-gray-200 text-gray-600 dark:border-slate-600 dark:text-slate-300"
-          }`}
-          aria-label={recording ? "Parar gravação" : "Gravar áudio"}
-        >
-          {recording ? (
-            <Square className="h-4 w-4" />
-          ) : (
-            <Mic className="h-4 w-4" />
-          )}
-        </button>
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          rows={1}
-          placeholder="Ex.: vendi 40 sacas de café a 890 para a Cooxupé hoje"
-          className="min-h-11 flex-1 resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 dark:border-slate-600 dark:bg-slate-800"
-        />
-        <button
-          type="submit"
-          disabled={busy || !input.trim()}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#166534] text-white disabled:opacity-40"
-          aria-label="Enviar"
-        >
-          <Send className="h-4 w-4" />
-        </button>
+        {recording ? (
+          <>
+            <button
+              type="button"
+              onClick={cancelRec}
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-rose-600"
+              aria-label="Descartar áudio"
+            >
+              <Trash2 className="h-5 w-5" />
+            </button>
+            <div className="mb-0.5 flex min-h-11 flex-1 items-center rounded-full bg-white px-3 py-1.5 dark:bg-slate-900">
+              <span className="mr-2 h-2 w-2 shrink-0 animate-pulse rounded-full bg-rose-500" />
+              <span className="w-10 shrink-0 font-mono text-xs tabular-nums text-rose-600">
+                {formatClock(recSeconds)}
+              </span>
+              <WaveBars levels={levels} />
+            </div>
+            <button
+              type="submit"
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#166534] text-white"
+              aria-label="Enviar áudio"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => void startRec()}
+              disabled={busy}
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#54656f] hover:bg-black/5 disabled:opacity-40 dark:text-slate-300"
+              aria-label="Gravar áudio"
+            >
+              <Mic className="h-5 w-5" />
+            </button>
+            <textarea
+              ref={taRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendText();
+                }
+              }}
+              rows={1}
+              placeholder="Mensagem"
+              className="max-h-[168px] min-h-11 flex-1 resize-none overflow-y-auto rounded-[22px] border-0 bg-white px-4 py-2.5 text-[15px] leading-6 text-gray-900 outline-none placeholder:text-gray-400 dark:bg-slate-900 dark:text-slate-100"
+            />
+            <button
+              type="submit"
+              disabled={busy || !input.trim()}
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#166534] text-white disabled:bg-[#c5c9cc] disabled:text-white"
+              aria-label="Enviar"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </form>
     </div>
   );

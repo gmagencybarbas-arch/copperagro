@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   },
   description:
     "Transforme dados de venda em decisões estratégicas. Inteligência agrícola para produtores e cooperativas.",
+  icons: {
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
