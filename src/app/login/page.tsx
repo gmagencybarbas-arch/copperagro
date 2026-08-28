@@ -2,7 +2,7 @@
 
 import { authErrorMessage } from "@/lib/auth/messages";
 import { hydrateOperationalData, loadProfileAndOrg } from "@/lib/db/hydrate";
-import { getSupabase, getSupabaseEnv, ensureSupabaseEnv } from "@/lib/supabase/client";
+import { getSupabase, getSupabaseEnv, ensureSupabaseEnv, describeSupabaseConfig } from "@/lib/supabase/client";
 import { BarChart3, LineChart, Sprout, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -26,9 +26,8 @@ export default function LoginPage() {
     setError(null);
     await ensureSupabaseEnv();
     if (!getSupabaseEnv().configured) {
-      setError(
-        "Banco não configurado no servidor. No Vercel adiciona NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY e faz Redeploy.",
-      );
+      const { hint } = await describeSupabaseConfig();
+      setError(hint || "Banco não configurado no servidor.");
       return;
     }
     const mail = email.trim();

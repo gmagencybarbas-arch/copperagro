@@ -27,24 +27,65 @@ export function getSupabaseEnv() {
 export function ensureSupabaseEnv(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   if (readBuildEnv().configured) return Promise.resolve();
-  if (!hydratePromise) {
-    hydratePromise = (async () => {
-      try {
-        const res = await fetch("/api/public-config", { cache: "no-store" });
-        if (!res.ok) return;
-        const json = (await res.json()) as {
-          url?: string;
-          anonKey?: string;
-        };
-        runtimeUrl = (json.url ?? "").trim();
-        runtimeAnonKey = (json.anonKey ?? "").trim();
-        browserClient = null;
-      } catch {
-        /* vazio: fica sem banco até o próximo try */
-      }
-    })();
-  }
+  if (hydratePromise) return hydratePromise;
+  hydratePromise = (async () => {
+    try {
+      const res = await fetch("/api/public-config", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = (await res.json()) as {
+        url?: string;
+        anonKey?: string;
+      };
+      runtimeUrl = (json.url ?? "").trim();
+      runtimeAnonKey = (json.anonKey ?? "").trim();
+      browserClient = null;
+    } catch {
+      /* tenta outra vez no próximo clique */
+    } finally {
+      if (!readBuildEnv().configured) hydratePromise = null;
+    }
+  })();
   return hydratePromise;
+}
+
+export async function describeSupabaseConfig() {
+  await ensureSupabaseEnv();
+  const env = readBuildEnv();
+  if (env.configured) {
+    return { configured: true, hint: "" };
+  }
+  try {
+    const res = await fetch("/api/public-config", { cache: "no-store" });
+    if (!res.ok) {
+      return {
+        configured: false,
+        hint: `A API /api/public-config respondeu ${res.status}. Este site precisa de ser o deploy Next (Vercel), não o GitHub.`,
+      };
+    }
+    const json = (await res.json()) as {
+      missing?: { url?: boolean; anonKey?: boolean };
+      onVercel?: boolean;
+    };
+    const falta: string[] = [];
+    if (json.missing?.url) falta.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (json.missing?.anonKey) {
+      falta.push("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (ou NEXT_PUBLIC_SUPABASE_ANON_KEY)");
+    }
+    const where = json.onVercel
+      ? "Vercel → Project → Settings → Environment Variables (Production + Preview), depois Redeploy sem cache."
+      : "painel do host (Vercel). Se estás a abrir o GitHub, isso não corre o Next.";
+    return {
+      configured: false,
+      hint: falta.length
+        ? `Falta no servidor: ${falta.join(" e ")}. Coloca em ${where}`
+        : `Chaves vazias no servidor. Coloca em ${where}`,
+    };
+  } catch {
+    return {
+      configured: false,
+      hint: "Não consegui falar com /api/public-config. Confirma que o site é o da Vercel, não o repositório GitHub.",
+    };
+  }
 }
 
 let browserClient: SupabaseClient | null = null;
