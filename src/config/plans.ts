@@ -29,7 +29,7 @@ export const PLANS: Record<Plan, PlanConfig> = {
     priceYearly: 7645,
     features: [
       "Setores ilimitados",
-      "IA de análise",
+      "AGRO AI (texto e áudio)",
       "Previsibilidade avançada",
       "Integrações futuras",
     ],

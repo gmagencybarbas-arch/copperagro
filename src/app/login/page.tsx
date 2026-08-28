@@ -2,7 +2,7 @@
 
 import { authErrorMessage } from "@/lib/auth/messages";
 import { hydrateOperationalData, loadProfileAndOrg } from "@/lib/db/hydrate";
-import { getSupabase, getSupabaseEnv } from "@/lib/supabase/client";
+import { getSupabase, getSupabaseEnv, ensureSupabaseEnv } from "@/lib/supabase/client";
 import { BarChart3, LineChart, Sprout, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,17 +14,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const configured = getSupabaseEnv().configured;
+  const [configured, setConfigured] = useState(getSupabaseEnv().configured);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("email");
     if (q) setEmail(q);
+    void ensureSupabaseEnv().then(() => setConfigured(getSupabaseEnv().configured));
   }, []);
 
   async function handleLogin() {
     setError(null);
-    if (!configured) {
-      setError("Banco não configurado. Peça as chaves NEXT_PUBLIC_SUPABASE_* .");
+    await ensureSupabaseEnv();
+    if (!getSupabaseEnv().configured) {
+      setError(
+        "Banco não configurado no servidor. No Vercel adiciona NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY e faz Redeploy.",
+      );
       return;
     }
     const mail = email.trim();

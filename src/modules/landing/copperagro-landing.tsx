@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  BarChart3,
   Beef,
   CalendarRange,
   Coffee,
@@ -76,6 +77,110 @@ const JOURNEY_STEPS = [
     Icon: Wallet,
   },
 ] as const;
+
+const HERO_SLIDES = [
+  {
+    src: "/landing/hero-farm.jpg",
+    alt: "Cafezal brasileiro ao amanhecer, com névoa entre as linhas de plantio",
+  },
+  {
+    src: "/landing/preview-tablet.jpg",
+    alt: "Produtor no cafezal consultando o painel no tablet",
+  },
+] as const;
+
+const PREVIEW_BARS = [40, 65, 45, 80, 55, 90, 70, 95, 60, 85, 75, 100];
+
+function HeroSlideShow() {
+  const reduce = useReducedMotion();
+  const [i, setI] = useState(0);
+
+  useEffect(() => {
+    if (reduce) return;
+    const t = window.setInterval(() => {
+      setI((n) => (n + 1) % HERO_SLIDES.length);
+    }, 5200);
+    return () => window.clearInterval(t);
+  }, [reduce]);
+
+  return (
+    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+      {HERO_SLIDES.map((slide, idx) => (
+        <Image
+          key={slide.src}
+          src={slide.src}
+          alt={slide.alt}
+          fill
+          priority={idx === 0}
+          sizes="(max-width: 1024px) 100vw, 50vw"
+          className="object-cover transition-opacity duration-700"
+          style={{
+            opacity: reduce ? (idx === 0 ? 1 : 0) : i === idx ? 1 : 0,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DashboardPreviewPanel() {
+  return (
+    <div className="relative w-full max-w-4xl rounded-[28px] border border-zinc-200/90 bg-white p-2 shadow-[0_32px_80px_-24px_rgba(15,23,42,0.35)] ring-1 ring-black/[0.04] dark:border-zinc-700 dark:bg-zinc-950">
+      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+        <div className="flex gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-rose-400/75" />
+          <span className="h-3 w-3 rounded-full bg-amber-400/90" />
+          <span className="h-3 w-3 rounded-full bg-emerald-400/90" />
+        </div>
+        <span className="ml-3 text-[11px] font-medium text-zinc-400">
+          CopperAgro Painel
+        </span>
+      </div>
+      <div className="grid gap-4 p-6 md:grid-cols-4">
+        {[
+          { label: "Faturamento", val: "R$ 2,4M", hint: "+12%" },
+          { label: "Sacas", val: "18.420", hint: "período" },
+          { label: "Preço médio", val: "R$ 892", hint: "ponderado" },
+          { label: "Estoque", val: "1,2M", hint: "sacas" },
+        ].map((k) => (
+          <div
+            key={k.label}
+            className="rounded-2xl border border-zinc-100 bg-zinc-50/90 p-4 dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+              {k.label}
+            </p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+              {k.val}
+            </p>
+            <p className="mt-1 text-xs font-medium text-emerald-600">{k.hint}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mx-6 mb-6 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white px-6 py-8 dark:border-emerald-900/40 dark:from-emerald-950/40 dark:to-zinc-950">
+        <div className="mb-6 flex items-center justify-between">
+          <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            Volume x Preço
+          </span>
+          <BarChart3 className="h-5 w-5 text-emerald-600/70" />
+        </div>
+        <div className="flex h-36 items-end justify-between gap-2">
+          {PREVIEW_BARS.map((h, i) => (
+            <div
+              key={i}
+              className="agro-bar-pulse w-full max-w-[28px] rounded-t-md bg-gradient-to-t from-[#16a34a] to-emerald-400/90"
+              style={{
+                height: `${h}%`,
+                animationDelay: `${i * 0.16}s`,
+                animationDuration: `${2.2 + (i % 4) * 0.45}s`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const FEATURES = [
   {
@@ -331,19 +436,12 @@ export function CopperAgroLanding() {
           </div>
 
           <motion.div
-            className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-900"
+            className="w-full"
             initial={reduce ? false : { opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.12, ease: EASE }}
           >
-            <Image
-              src="/landing/hero-farm.jpg"
-              alt="Cafezal brasileiro ao amanhecer, com névoa entre as linhas de plantio"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
-            />
+            <HeroSlideShow />
           </motion.div>
         </div>
       </section>
@@ -434,14 +532,8 @@ export function CopperAgroLanding() {
               O painel que você sempre quis ter na palma da mão
             </h2>
           </Reveal>
-          <div className="relative mx-auto mt-14 aspect-[4/3] max-w-4xl overflow-hidden rounded-2xl bg-zinc-200 shadow-[0_32px_80px_-28px_rgba(15,23,42,0.35)] dark:bg-zinc-800">
-            <Image
-              src="/landing/preview-tablet.jpg"
-              alt="Produtor no cafezal consultando o painel no tablet"
-              fill
-              sizes="(max-width: 1024px) 100vw, 896px"
-              className="object-cover"
-            />
+          <div className="mt-14 flex justify-center">
+            <DashboardPreviewPanel />
           </div>
         </div>
       </section>

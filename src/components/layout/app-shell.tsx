@@ -23,6 +23,7 @@ import {
   FileBarChart,
   LayoutGrid,
   LineChart,
+  MessageCircle,
   MoreHorizontal,
   PackageOpen,
   Plus,
@@ -36,6 +37,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const nav = [
+  {
+    href: "/agro-ai",
+    label: "AGRO AI",
+    shortLabel: "AGRO AI",
+    Icon: MessageCircle,
+  },
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -72,6 +79,7 @@ const mobileNav = [
 ] as const;
 
 const titles: Record<string, string> = {
+  "/agro-ai": "AGRO AI",
   "/dashboard": "Painel",
   "/analises": "Análises",
   "/despesas": "Despesas",
@@ -159,6 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname === "/analises") return "Indicadores e comparações";
     if (pathname === "/planos") return "Assinatura e recursos do plano";
     if (pathname === "/relatorios") return "Relatórios e exportação";
+    if (pathname === "/agro-ai") return "Lançamentos por texto ou áudio";
     if (pathname === "/dashboard") return "Visão geral da operação";
     return "CoopFinance";
   }, [pathname]);
@@ -232,12 +241,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {nav.filter((item) => !item.href.startsWith("/setor/")).map((item) => {
             const active = pathname === item.href;
             const Icon = item.Icon;
-            return (
+            const isAgroAi = item.href === "/agro-ai";
+            const link = (
               <Link
-                key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`group flex items-center gap-3 rounded-2xl border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98] ${
+                className={`group flex items-center gap-3 rounded-[14px] border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98] ${
                   active
                     ? "border-green-200 bg-green-50 text-green-800 shadow-sm dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200"
                     : "border-transparent text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
@@ -246,6 +255,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <NavIcon Icon={Icon} active={active} />
                 <span>{item.label}</span>
               </Link>
+            );
+            if (!isAgroAi) return <div key={item.href}>{link}</div>;
+            return (
+              <div
+                key={item.href}
+                className="agro-ai-border mb-1 rounded-2xl p-[1.5px]"
+              >
+                <div className="rounded-[14px] bg-white dark:bg-slate-900">{link}</div>
+              </div>
             );
           })}
 

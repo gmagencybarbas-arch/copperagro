@@ -2,11 +2,11 @@
 
 import { authErrorMessage } from "@/lib/auth/messages";
 import { hydrateOperationalData, loadProfileAndOrg } from "@/lib/db/hydrate";
-import { getSupabase, getSupabaseEnv } from "@/lib/supabase/client";
+import { getSupabase, getSupabaseEnv, ensureSupabaseEnv } from "@/lib/supabase/client";
 import { Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -19,7 +19,11 @@ export default function SignupPage() {
   const [awaitingEmail, setAwaitingEmail] = useState(false);
   const [existingEmail, setExistingEmail] = useState(false);
   const [resendNote, setResendNote] = useState<string | null>(null);
-  const configured = getSupabaseEnv().configured;
+  const [configured, setConfigured] = useState(getSupabaseEnv().configured);
+
+  useEffect(() => {
+    void ensureSupabaseEnv().then(() => setConfigured(getSupabaseEnv().configured));
+  }, []);
 
   async function emailAlreadyRegistered(mail: string): Promise<boolean> {
     try {
@@ -40,8 +44,11 @@ export default function SignupPage() {
     setError(null);
     setResendNote(null);
     setExistingEmail(false);
-    if (!configured) {
-      setError("Banco não configurado. Defina as chaves do Supabase no .env.local.");
+    await ensureSupabaseEnv();
+    if (!getSupabaseEnv().configured) {
+      setError(
+        "Banco não configurado no servidor. No Vercel adiciona NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY e faz Redeploy.",
+      );
       return;
     }
     const mail = email.trim();

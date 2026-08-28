@@ -189,13 +189,45 @@ html.dark body {
   animation: app-drawer-surface-in 0.28s var(--app-ease) both;
 }
 
+@keyframes agro-bar-pulse {
+  0%,
+  100% {
+    transform: scaleY(0.46);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.agro-bar-pulse {
+  transform-origin: bottom;
+  animation: agro-bar-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes agro-ai-sheen {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.agro-ai-border {
+  background-image: linear-gradient(90deg, #188138, #1a582d, #188138);
+  background-size: 200% 100%;
+  animation: agro-ai-sheen 3.6s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-dash-enter,
   .app-content-enter,
   .coop-bean,
   .coop-progress-fill,
   .copperagro-plant-pulse,
-  .plan-chosen-pop {
+  .plan-chosen-pop,
+  .agro-bar-pulse,
+  .agro-ai-border {
     animation: none !important;
   }
 

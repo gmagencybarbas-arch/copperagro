@@ -1,7 +1,7 @@
 "use client";
 
 import { authErrorMessage } from "@/lib/auth/messages";
-import { getSupabase, getSupabaseEnv } from "@/lib/supabase/client";
+import { getSupabase, getSupabaseEnv, ensureSupabaseEnv } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -18,10 +18,11 @@ function ForgotInner() {
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const configured = getSupabaseEnv().configured;
+  const [configured, setConfigured] = useState(false);
 
   useEffect(() => {
     setEmail(preset);
+    void ensureSupabaseEnv().then(() => setConfigured(getSupabaseEnv().configured));
   }, [preset]);
 
   async function sendReset() {
@@ -32,7 +33,9 @@ function ForgotInner() {
       return;
     }
     if (!configured) {
-      setError("Banco não configurado.");
+      setError(
+        "Banco não configurado no servidor. Adiciona as chaves no Vercel e faz Redeploy.",
+      );
       return;
     }
     setPending(true);

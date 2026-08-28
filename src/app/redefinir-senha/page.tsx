@@ -1,10 +1,10 @@
 "use client";
 
 import { authErrorMessage } from "@/lib/auth/messages";
-import { getSupabase, getSupabaseEnv } from "@/lib/supabase/client";
+import { getSupabase, getSupabaseEnv, ensureSupabaseEnv } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -12,7 +12,11 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const configured = getSupabaseEnv().configured;
+  const [configured, setConfigured] = useState(getSupabaseEnv().configured);
+
+  useEffect(() => {
+    void ensureSupabaseEnv().then(() => setConfigured(getSupabaseEnv().configured));
+  }, []);
 
   async function save() {
     setError(null);
@@ -25,7 +29,9 @@ export default function ResetPasswordPage() {
       return;
     }
     if (!configured) {
-      setError("Banco não configurado.");
+      setError(
+        "Banco não configurado no servidor. Adiciona as chaves no Vercel e faz Redeploy.",
+      );
       return;
     }
     setPending(true);
