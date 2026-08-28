@@ -2,11 +2,10 @@
 
 import {
   DEFAULT_EXPENSE_CATEGORY,
-  normalizeExpense,
 } from "@/lib/expense-migrate";
+import { persistExpense } from "@/lib/db/persist";
 import type { Expense, ExpenseCategory, ExpenseFilters } from "@/types/expense";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 
 function uid(): string {
   return (
@@ -22,30 +21,6 @@ function todayISO(): string {
   ).padStart(2, "0")}`;
 }
 
-const ssrMemoryStorage: Storage = (() => {
-  const m = new Map<string, string>();
-  return {
-    get length() {
-      return m.size;
-    },
-    clear() {
-      m.clear();
-    },
-    getItem(key: string) {
-      return m.get(key) ?? null;
-    },
-    key(index: number) {
-      return [...m.keys()][index] ?? null;
-    },
-    removeItem(key: string) {
-      m.delete(key);
-    },
-    setItem(key: string, value: string) {
-      m.set(key, value);
-    },
-  } as Storage;
-})();
-
 type ExpenseState = {
   expenses: Expense[];
   filters: ExpenseFilters;
@@ -60,51 +35,27 @@ const defaultFilters: ExpenseFilters = {
   sectorId: "all",
 };
 
-export const useExpenseStore = create<ExpenseState>()(
-  persist(
-    (set) => ({
-      expenses: [],
-      filters: defaultFilters,
+export const useExpenseStore = create<ExpenseState>()((set) => ({
+  expenses: [],
+  filters: defaultFilters,
 
-      addExpense: (input) => {
-        const amount = Number(input.amount);
-        if (!Number.isFinite(amount) || amount <= 0) return;
-        if (!input.description.trim()) return;
-        const category: ExpenseCategory = input.category ?? DEFAULT_EXPENSE_CATEGORY;
-        const expense: Expense = {
-          id: uid(),
-          date: input.date || todayISO(),
-          description: input.description.trim(),
-          amount,
-          category,
-          sectorId: input.sectorId || undefined,
-        };
-        set((s) => ({ expenses: [expense, ...s.expenses] }));
-      },
+  addExpense: (input) => {
+    const amount = Number(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!input.description.trim()) return;
+    const category: ExpenseCategory = input.category ?? DEFAULT_EXPENSE_CATEGORY;
+    const expense: Expense = {
+      id: uid(),
+      date: input.date || todayISO(),
+      description: input.description.trim(),
+      amount,
+      category,
+      sectorId: input.sectorId || undefined,
+    };
+    set((s) => ({ expenses: [expense, ...s.expenses] }));
+    void persistExpense(expense);
+  },
 
-      setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
-      clearFilters: () => set({ filters: defaultFilters }),
-    }),
-    {
-      name: "coopfinance-expenses",
-      version: 2,
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? localStorage : ssrMemoryStorage,
-      ),
-      partialize: (state) => ({
-        expenses: state.expenses,
-      }),
-      migrate: (persisted, version) => {
-        if (version < 2 && persisted && typeof persisted === "object" && "expenses" in persisted) {
-          const p = persisted as { expenses: unknown[]; filters?: ExpenseFilters };
-          return {
-            ...p,
-            expenses: p.expenses.map((e) => normalizeExpense(e as Expense)),
-          };
-        }
-        return persisted;
-      },
-    },
-  ),
-);
-
+  setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
+  clearFilters: () => set({ filters: defaultFilters }),
+}));

@@ -1,5 +1,6 @@
 "use client";
 
+import { PLANS } from "@/config/plans";
 import { useAuthStore } from "@/store/auth-store";
 import Link from "next/link";
 
@@ -28,9 +29,12 @@ export default function ContaPage() {
         </p>
         <p className="text-sm">
           <span className="font-semibold text-gray-700">Plano atual:</span>{" "}
-          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold uppercase text-emerald-700">
-            {company.plan}
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            {PLANS[company.plan].name}
           </span>
+        </p>
+        <p className="text-xs text-gray-500">
+          Status da assinatura: <strong className="text-emerald-700">ativo · {PLANS[company.plan].name}</strong>
         </p>
         <div className="flex flex-wrap gap-2 pt-2">
           <Link href="/planos" className="rounded-xl bg-[#166534] px-4 py-2 text-sm font-semibold text-white">

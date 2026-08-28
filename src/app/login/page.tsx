@@ -1,19 +1,65 @@
 "use client";
 
-import { useAuthStore } from "@/store/auth-store";
-import { usePlanStore } from "@/store/plan-store";
-import type { Plan } from "@/types/plan";
+import { authErrorMessage } from "@/lib/auth/messages";
+import { hydrateOperationalData, loadProfileAndOrg } from "@/lib/db/hydrate";
+import { getSupabase, getSupabaseEnv } from "@/lib/supabase/client";
 import { BarChart3, LineChart, Sprout, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const login = useAuthStore((s) => s.login);
-  const setPlan = usePlanStore((s) => s.setPlan);
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const configured = getSupabaseEnv().configured;
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("email");
+    if (q) setEmail(q);
+  }, []);
+
+  async function handleLogin() {
+    setError(null);
+    if (!configured) {
+      setError("Banco não configurado. Peça as chaves NEXT_PUBLIC_SUPABASE_* .");
+      return;
+    }
+    const mail = email.trim();
+    if (!mail || !password) {
+      setError("Informe e-mail e senha.");
+      return;
+    }
+    setPending(true);
+    try {
+      const supabase = getSupabase();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: mail,
+        password,
+      });
+      if (authError) {
+        setError(authErrorMessage(authError.message));
+        return;
+      }
+      if (!data.user) {
+        setError("Não foi possível entrar.");
+        return;
+      }
+      const ok = await loadProfileAndOrg(data.user.id, data.user.email ?? mail);
+      if (!ok) {
+        setError("Conta autenticada, mas o perfil ainda não existe no banco. Rode o SQL do schema.");
+        return;
+      }
+      await hydrateOperationalData();
+      router.replace("/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha no login.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f7f5f1]">
@@ -34,43 +80,40 @@ export default function LoginPage() {
           </div>
           <div className="space-y-3">
             <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Seu nome"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            />
-            <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="E-mail"
               type="email"
+              autoComplete="email"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            />
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Senha"
+              type="password"
+              autoComplete="current-password"
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
             />
           </div>
+          {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}
           <button
             type="button"
-            onClick={() => {
-              const plan: Plan = "standard";
-              login({
-                user: {
-                  id: `u_${Date.now()}`,
-                  name: name.trim() || "Usuário",
-                  email: email.trim() || "user@copperagro.com",
-                  companyId: "c_default",
-                },
-                company: {
-                  id: "c_default",
-                  name: "Minha Fazenda",
-                  plan,
-                },
-              });
-              setPlan(plan);
-              router.replace("/dashboard");
-            }}
-            className="w-full rounded-xl bg-[#166534] py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#14532d]"
+            disabled={pending}
+            onClick={() => void handleLogin()}
+            className="w-full rounded-xl bg-[#166534] py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:bg-[#14532d] hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
           >
-            Entrar
+            {pending ? "Entrando..." : "Entrar"}
           </button>
+          <p className="text-xs text-gray-500">
+            Esqueceu a senha?{" "}
+            <Link
+              className="font-semibold text-[#166534]"
+              href={`/esqueci-senha${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+            >
+              Resetar senha
+            </Link>
+          </p>
           <p className="text-xs text-gray-500">
             Não tem conta?{" "}
             <Link className="font-semibold text-[#166534]" href="/signup">

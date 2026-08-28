@@ -14,8 +14,9 @@ export function CoopFinanceGate({
 }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionReady = useAuthStore((s) => s.sessionReady);
   const company = useAuthStore((s) => s.company);
-  const setPlan = usePlanStore((s) => s.setPlan);
+  const setPlanLocal = usePlanStore((s) => s.setPlanLocal);
   const [phase, setPhase] = useState<"splash" | "done">("splash");
 
   useEffect(() => {
@@ -24,18 +25,18 @@ export function CoopFinanceGate({
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (sessionReady && !isAuthenticated) {
       router.replace("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [sessionReady, isAuthenticated, router]);
 
   useEffect(() => {
-    if (company) setPlan(company.plan);
-  }, [company, setPlan]);
+    if (company) setPlanLocal(company.plan);
+  }, [company, setPlanLocal]);
 
-  const splashVisible = phase === "splash";
+  const splashVisible = phase === "splash" || !sessionReady;
 
-  if (!isAuthenticated) {
+  if (sessionReady && !isAuthenticated) {
     return null;
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { SECTOR_TAB_ACTIVE } from "@/lib/sector-palette";
+import { beginRouteLoading } from "@/store/nav-loading-store";
 import { useSectorStore } from "@/store/sector-store";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -39,6 +40,7 @@ export function SectorTabs() {
             aria-selected={active}
             onClick={() => {
               setSelectedSector(s.id);
+              beginRouteLoading(`/setor/${s.id}`);
               router.push(`/setor/${s.id}`);
             }}
             className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 ease-app active:scale-95 ${

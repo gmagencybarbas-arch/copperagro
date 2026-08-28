@@ -1,5 +1,6 @@
 "use client";
 
+import { beginRouteLoading } from "@/store/nav-loading-store";
 import { useAuthStore } from "@/store/auth-store";
 import { BookOpen, LineChart, Rocket, Settings, UserRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -95,6 +96,7 @@ export function MobileMoreSheet({ open, onClose }: Props) {
 
   function go(href: string) {
     closeWithReset();
+    beginRouteLoading(href);
     router.push(href);
   }
 }

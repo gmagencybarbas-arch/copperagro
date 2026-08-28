@@ -1,14 +1,16 @@
 "use client";
 
+import { SectorGlyph } from "@/components/sector/sector-icon";
 import { BigNumber, CleanInput, PrimaryButton } from "@/design-system";
 import { formatBRLFine } from "@/lib/format";
+import { SECTOR_TAB_ACTIVE } from "@/lib/sector-palette";
 import { useDrawerStore } from "@/store/drawer-store";
 import {
   DEFAULT_SECTOR_ID,
   pluralizeUnit,
   useSectorStore,
 } from "@/store/sector-store";
-import { useSalesStore, useStockSnapshot } from "@/store/sales-store";
+import { computeStockSnapshot, useSalesStore } from "@/store/sales-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 function todayISO(): string {
@@ -23,13 +25,19 @@ export function SaleDrawer() {
   const open = useDrawerStore((s) => s.saleDrawerOpen);
   const close = useDrawerStore((s) => s.closeSaleDrawer);
   const addSale = useSalesStore((s) => s.addSale);
-  const stock = useStockSnapshot();
+  const stockTotalSacas = useSalesStore((s) => s.stockTotalSacas);
+  const stockMovements = useSalesStore((s) => s.stockMovements);
   const sectors = useSectorStore((s) => s.sectors);
-  const selectedSectorId = useSectorStore((s) => s.selectedSectorId);
-  const currentSectorId = selectedSectorId ?? DEFAULT_SECTOR_ID;
+  const setSelectedSector = useSectorStore((s) => s.setSelectedSector);
+
+  const [saleSectorId, setSaleSectorId] = useState(DEFAULT_SECTOR_ID);
   const currentSector =
-    sectors.find((s) => s.id === currentSectorId) ?? sectors[0];
+    sectors.find((s) => s.id === saleSectorId) ?? sectors[0];
   const unit = currentSector?.unit ?? "unidade";
+  const stock = useMemo(
+    () => computeStockSnapshot(stockTotalSacas, stockMovements, saleSectorId),
+    [stockTotalSacas, stockMovements, saleSectorId],
+  );
 
   const dateRef = useRef<HTMLInputElement>(null);
 
@@ -40,16 +48,15 @@ export function SaleDrawer() {
   const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setDate(todayISO());
-      setQuantity(1);
-      setUnitPrice(800);
-      setBuyer("");
-      setAttempted(false);
-      requestAnimationFrame(() => {
-        dateRef.current?.focus();
-      });
-    }
+    if (!open) return;
+    const selected = useSectorStore.getState().selectedSectorId;
+    const list = useSectorStore.getState().sectors;
+    setSaleSectorId(selected ?? list[0]?.id ?? DEFAULT_SECTOR_ID);
+    setDate(todayISO());
+    setQuantity(1);
+    setUnitPrice(800);
+    setBuyer("");
+    setAttempted(false);
   }, [open]);
 
   const total = useMemo(
@@ -69,7 +76,7 @@ export function SaleDrawer() {
 
     addSale({
       date,
-      sectorId: currentSectorId,
+      sectorId: saleSectorId,
       quantity,
       unitPrice,
       buyer: buyer.trim(),
@@ -138,6 +145,46 @@ export function SaleDrawer() {
           onKeyDown={onFormKeyDown}
           className="flex flex-1 flex-col gap-8 overflow-y-auto px-8 py-8"
         >
+          <div className="space-y-2">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Setor da venda
+            </label>
+            <div
+              className="flex gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              role="tablist"
+              aria-label="Escolher setor"
+            >
+              {sectors.map((s) => {
+                const active = s.id === saleSectorId;
+                const activeCls = SECTOR_TAB_ACTIVE[s.color] ?? SECTOR_TAB_ACTIVE.green;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => {
+                      setSaleSectorId(s.id);
+                      setSelectedSector(s.id);
+                    }}
+                    className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition-all duration-200 ease-app active:scale-95 ${
+                      active
+                        ? `scale-[1.02] ${activeCls}`
+                        : "border border-gray-200/90 bg-white text-gray-800 shadow-sm hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100"
+                    }`}
+                  >
+                    <SectorGlyph icon={s.icon} sectorId={s.id} className="h-4 w-4" />
+                    <span>{s.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-500">
+              Registro em <strong>{currentSector?.name ?? "setor"}</strong>
+              {currentSector ? ` · ${currentSector.unit}` : ""}.
+            </p>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
               Data

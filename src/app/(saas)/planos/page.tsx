@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Sprout } from "lucide-react";
 import { PLANS } from "@/config/plans";
 import { usePlanStore } from "@/store/plan-store";
 import type { Plan } from "@/types/plan";
@@ -13,8 +14,16 @@ function formatBRL(value: number): string {
 
 export default function PlanosPage() {
   const [billing, setBilling] = useState<"quarterly" | "yearly">("quarterly");
+  const [chosenBurst, setChosenBurst] = useState<Plan | null>(null);
   const currentPlan = usePlanStore((s) => s.currentPlan);
   const setPlan = usePlanStore((s) => s.setPlan);
+
+  const choosePlan = (key: Plan) => {
+    if (currentPlan === key) return;
+    setPlan(key);
+    setChosenBurst(key);
+    window.setTimeout(() => setChosenBurst(null), 2200);
+  };
   const installments = billing === "quarterly" ? 3 : 12;
 
   const getPlanPrice = (plan: Plan) =>
@@ -128,20 +137,52 @@ export default function PlanosPage() {
               </div>
 
               <button
-                onClick={() => setPlan(key)}
+                onClick={() => choosePlan(key)}
                 disabled={isCurrent}
-                className={`mt-6 rounded-xl py-2 text-white transition-all ${
+                className={`mt-6 inline-flex items-center justify-center gap-2 rounded-xl py-2 text-white transition-all ${
                   isCurrent
-                    ? "cursor-not-allowed bg-gray-400 dark:bg-slate-600"
+                    ? "cursor-not-allowed bg-emerald-600 dark:bg-emerald-700"
                     : "bg-[#166534] hover:bg-[#14532d] hover:scale-[1.01] active:scale-[0.98]"
                 }`}
               >
-                {isCurrent ? "Plano atual" : "Escolher plano"}
+                {isCurrent ? (
+                  <>
+                    <Check className="h-4 w-4" strokeWidth={2.4} />
+                    Plano atual
+                  </>
+                ) : (
+                  "Escolher plano"
+                )}
               </button>
             </div>
           );
         })}
       </div>
+
+      {chosenBurst ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="absolute inset-0 bg-emerald-950/25 backdrop-blur-[2px]" />
+          <div className="plan-chosen-pop relative w-full max-w-sm rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-2xl dark:border-emerald-800/60 dark:bg-slate-900">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300">
+              <Sprout className="h-7 w-7" strokeWidth={1.9} />
+            </span>
+            <p className="mt-4 text-lg font-semibold text-gray-900 dark:text-slate-50">
+              Plano {PLANS[chosenBurst].name} escolhido
+            </p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+              Já está ativo na sua conta.
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+              <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Status atualizado
+            </span>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

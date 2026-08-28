@@ -1,3 +1,4 @@
+import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s · CopperAgro",
   },
   description:
-    "Transforme dados de venda em decisões estratégicas — inteligência agrícola para produtores e cooperativas.",
+    "Transforme dados de venda em decisões estratégicas. Inteligência agrícola para produtores e cooperativas.",
 };
 
 export default function RootLayout({
@@ -27,7 +28,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} bg-[#f9fafb] font-sans text-gray-900 antialiased dark:bg-slate-900 dark:text-slate-100`}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <SessionProvider>{children}</SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

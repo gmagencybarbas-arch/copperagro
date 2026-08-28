@@ -7,7 +7,8 @@ import {
   createDefaultSalesFilter,
   isoDateFromDate,
 } from "@/store/sales-metrics";
-import { DEFAULT_SECTOR_ID, useSectorStore } from "@/store/sector-store";
+import { persistSale, persistSaleDelete, persistSaleUpdate, persistStockMovement, persistStockTotal } from "@/lib/db/persist";
+import { useSectorStore } from "@/store/sector-store";
 import type {
   ComparisonSeriesMode,
   Sale,
@@ -17,32 +18,6 @@ import type {
 } from "@/types/sale";
 import { useMemo } from "react";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-
-/** Instância única em memória — substitui `localStorage` no SSR. */
-const ssrMemoryStorage: Storage = (() => {
-  const m = new Map<string, string>();
-  return {
-    get length() {
-      return m.size;
-    },
-    clear() {
-      m.clear();
-    },
-    getItem(key: string) {
-      return m.get(key) ?? null;
-    },
-    key(index: number) {
-      return [...m.keys()][index] ?? null;
-    },
-    removeItem(key: string) {
-      m.delete(key);
-    },
-    setItem(key: string, value: string) {
-      m.set(key, value);
-    },
-  } as Storage;
-})();
 
 function uid(): string {
   return (
@@ -178,9 +153,7 @@ type SalesState = {
   deleteSale: (id: string) => void;
 };
 
-export const useSalesStore = create<SalesState>()(
-  persist(
-    (set) => ({
+export const useSalesStore = create<SalesState>()((set) => ({
       sales: [],
       stockTotalSacas: DEFAULT_STOCK_TOTAL,
       stockMovements: [],
@@ -214,17 +187,21 @@ export const useSalesStore = create<SalesState>()(
       setStockTotalSacas: (n) => {
         const next = Math.floor(Number(n));
         if (!Number.isFinite(next) || next < 0) return;
+        let saved = false;
         set((s) => {
           const movements = reconcileMovements(s.sales, s.stockMovements);
           const { remaining } = computeStockState(next, movements);
           if (remaining < 0) return s;
+          saved = true;
           return { stockTotalSacas: next, stockMovements: movements };
         });
+        if (saved) void persistStockTotal(next);
       },
 
       addStockEntry: (input) => {
         const qty = Math.floor(Number(input.quantity));
         if (qty <= 0) return;
+        let created: StockMovement | null = null;
         set((s) => {
           const movements = reconcileMovements(s.sales, s.stockMovements);
           const mov: StockMovement = {
@@ -235,14 +212,17 @@ export const useSalesStore = create<SalesState>()(
             sectorId: input.sectorId,
             note: input.note?.trim() || undefined,
           };
+          created = mov;
           return { stockMovements: [mov, ...movements] };
         });
+        if (created) void persistStockMovement(created as StockMovement);
       },
 
       addSale: (input) => {
         const qty = Math.floor(Number(input.quantity));
         const price = Number(input.unitPrice);
         if (qty <= 0 || price <= 0) return;
+        let created: { sale: Sale; mov: StockMovement } | null = null;
 
         set((s) => {
           const movements = reconcileMovements(s.sales, s.stockMovements);
@@ -268,14 +248,20 @@ export const useSalesStore = create<SalesState>()(
             sectorId: input.sectorId,
             relatedSaleId: saleId,
           };
+          created = { sale, mov };
           return {
             sales: [sale, ...s.sales],
             stockMovements: [mov, ...movements],
           };
         });
+        if (created) {
+          const payload = created as { sale: Sale; mov: StockMovement };
+          void persistSale(payload.sale, payload.mov);
+        }
       },
 
       updateSale: (id, patch) => {
+        let updatedSale: Sale | null = null;
         set((s) => {
           const movements = reconcileMovements(s.sales, s.stockMovements);
           const idx = s.sales.findIndex((x) => x.id === id);
@@ -313,6 +299,7 @@ export const useSalesStore = create<SalesState>()(
           };
           const sales = [...s.sales];
           sales[idx] = updated;
+          updatedSale = updated;
 
           const stockMovements = movements.map((m) =>
             m.relatedSaleId === id
@@ -322,57 +309,20 @@ export const useSalesStore = create<SalesState>()(
 
           return { sales, stockMovements };
         });
+        if (updatedSale) void persistSaleUpdate(updatedSale);
       },
 
-      deleteSale: (id) =>
+      deleteSale: (id) => {
         set((s) => {
           const movements = reconcileMovements(s.sales, s.stockMovements);
           return {
             sales: s.sales.filter((x) => x.id !== id),
             stockMovements: movements.filter((m) => m.relatedSaleId !== id),
           };
-        }),
-    }),
-    {
-      name: "coffee-sales",
-      version: 4,
-      migrate: (persisted: unknown, fromVersion?: number) => {
-        const p = persisted as Partial<SalesState> & {
-          stockMovements?: StockMovement[];
-        };
-        if (typeof fromVersion === "number" && fromVersion < 3) {
-          return {
-            ...p,
-            sales: [],
-            stockTotalSacas: 0,
-            stockMovements: [],
-          };
-        }
-        const sales = (p.sales ?? []).map((s) => ({
-          ...s,
-          sectorId: s.sectorId ?? DEFAULT_SECTOR_ID,
-        }));
-        const movements = (p.stockMovements ?? []).map((m) => ({
-          ...m,
-          sectorId: m.sectorId ?? DEFAULT_SECTOR_ID,
-        }));
-        return {
-          ...p,
-          sales,
-          stockMovements: reconcileMovements(sales, movements),
-        };
+        });
+        void persistSaleDelete(id);
       },
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? localStorage : ssrMemoryStorage,
-      ),
-      partialize: (state) => ({
-        sales: state.sales,
-        stockTotalSacas: state.stockTotalSacas,
-        stockMovements: state.stockMovements,
-      }),
-    },
-  ),
-);
+}));
 
 export function useSalesMetrics() {
   const sales = useSalesStore((s) => s.sales);

@@ -137,8 +137,40 @@ html.dark body {
 }
 
 .app-content-enter {
-  animation: app-content-enter 0.32s var(--app-ease) both;
+  animation: app-content-enter 0.28s var(--app-ease) both;
   will-change: opacity, transform;
+}
+
+@keyframes copperagro-plant-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.78;
+  }
+}
+
+.copperagro-plant-pulse {
+  animation: copperagro-plant-pulse 1.4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes plan-chosen-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.plan-chosen-pop {
+  animation: plan-chosen-pop 0.32s var(--app-ease) both;
 }
 
 /* Painel lateral (drawer): ligeiro deslize da direita ao abrir */
@@ -161,7 +193,9 @@ html.dark body {
   .animate-dash-enter,
   .app-content-enter,
   .coop-bean,
-  .coop-progress-fill {
+  .coop-progress-fill,
+  .copperagro-plant-pulse,
+  .plan-chosen-pop {
     animation: none !important;
   }
 

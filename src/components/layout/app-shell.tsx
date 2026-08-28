@@ -1,5 +1,6 @@
 "use client";
 
+import { RouteLoadingOverlay } from "@/components/layout/route-loading-overlay";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { MobileMoreSheet } from "@/components/layout/mobile-more-sheet";
 import { ExpenseDrawer } from "@/components/expense-drawer/expense-drawer";
@@ -13,6 +14,7 @@ import { useDrawerStore } from "@/store/drawer-store";
 import { usePlanStore } from "@/store/plan-store";
 import { useSalesStore } from "@/store/sales-store";
 import { DEFAULT_SECTOR_ID, useSectorStore } from "@/store/sector-store";
+import { beginRouteLoading } from "@/store/nav-loading-store";
 import { useUIStore } from "@/store/ui-store";
 import {
   ArrowUpRight,
@@ -122,6 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleSectorPicked = (sectorId: string) => {
     setSelectedSector(sectorId);
+    beginRouteLoading(`/setor/${sectorId}`);
     router.push(`/setor/${sectorId}`);
     setSectorModalOpen(false);
     if (openSaleAfterSector) {
@@ -348,7 +351,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <button
             type="button"
-            onClick={() => router.push("/planos")}
+            onClick={() => {
+              beginRouteLoading("/planos");
+              router.push("/planos");
+            }}
             className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#166534] to-[#15803d] py-2 font-medium text-white shadow-sm transition-all hover:scale-[1.01] hover:from-[#14532d] hover:to-[#166534] active:scale-[0.99]"
           >
             <ArrowUpRight className="h-4 w-4" strokeWidth={2.1} />
@@ -391,9 +397,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <div className="md:hidden">
-              <ThemeToggle compact />
-            </div>
             <PrimaryActionButton
               onOpenSectorPickerForSale={() => openSectorPicker({ forSale: true })}
             />
@@ -466,6 +469,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     setSectorModalOpen(true);
                   } else {
                     setSelectedSector(DEFAULT_SECTOR_ID);
+                    beginRouteLoading(`/setor/${DEFAULT_SECTOR_ID}`);
                     router.push(`/setor/${DEFAULT_SECTOR_ID}`);
                   }
                 }}
@@ -550,6 +554,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           if (!id) return;
           setSelectedSector(id);
           setSectorCreateOpen(false);
+          beginRouteLoading(`/setor/${id}`);
           router.push(`/setor/${id}`);
           setCreateFeedback(`Setor "${input.name}" criado com sucesso`);
         }}
@@ -563,6 +568,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {createFeedback}
         </div>
       )}
+      <RouteLoadingOverlay />
       <SaleDrawer />
       <StockEntryDrawer />
       <ExpenseDrawer />
@@ -580,12 +586,18 @@ function PrimaryActionButton({
   const selectedSectorId = useSectorStore((s) => s.selectedSectorId);
   const openSaleDrawer = useDrawerStore((s) => s.openSaleDrawer);
   const openExpenseDrawer = useDrawerStore((s) => s.openExpenseDrawer);
+  const openStockDrawer = useDrawerStore((s) => s.openStockDrawer);
   const sectorFromPath = pathname?.match(/^\/setor\/([^/]+)/)?.[1] ?? null;
   const effectiveSectorId = sectorFromPath ?? selectedSectorId ?? null;
 
   const handlePrimaryAction = () => {
     if (currentModule === "expenses") {
       openExpenseDrawer();
+      return;
+    }
+
+    if (currentModule === "stock") {
+      openStockDrawer();
       return;
     }
 
@@ -601,16 +613,21 @@ function PrimaryActionButton({
     openSaleDrawer();
   };
 
-  const actionLabel = currentModule === "expenses" ? "Nova Despesa" : "Nova Venda";
+  const actionLabel =
+    currentModule === "expenses"
+      ? "Nova Despesa"
+      : currentModule === "stock"
+        ? "Lançar estoque"
+        : "Nova Venda";
 
   return (
     <button
       type="button"
       onClick={handlePrimaryAction}
-      className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-[#166534] px-3 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 ease-app hover:scale-[1.01] hover:bg-[#14532d] active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 dark:focus-visible:ring-emerald-600 sm:px-4"
+      className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-[#166534] px-2.5 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 ease-app hover:scale-[1.01] hover:bg-[#14532d] active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] focus-visible:ring-offset-2 dark:focus-visible:ring-emerald-600 sm:gap-2 sm:px-4 sm:text-sm"
     >
-      <Plus className="h-[18px] w-[18px]" strokeWidth={2.25} />
-      <span className="hidden sm:inline">{actionLabel}</span>
+      <Plus className="h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px]" strokeWidth={2.25} />
+      <span className="truncate">{actionLabel}</span>
     </button>
   );
 }
