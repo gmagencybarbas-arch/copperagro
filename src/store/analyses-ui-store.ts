@@ -1,6 +1,5 @@
 "use client";
 
-import { DEFAULT_SECTOR_ID } from "@/store/sector-store";
 import type { AnalysesViewMode, SimulationApplyScope } from "@/types/analytics";
 import { create } from "zustand";
 
@@ -16,7 +15,7 @@ type AnalysesUIState = {
 
 export const useAnalysesUIStore = create<AnalysesUIState>((set) => ({
   viewMode: "global",
-  analysesSectorId: DEFAULT_SECTOR_ID,
+  analysesSectorId: "",
   simulationScope: "view",
   setViewMode: (m) => set({ viewMode: m }),
   setAnalysesSectorId: (id) => set({ analysesSectorId: id }),

@@ -9,7 +9,8 @@
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "keepalive": "node scripts/supabase-keepalive.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

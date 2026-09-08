@@ -24,7 +24,7 @@ function todayISO(): string {
 type ExpenseState = {
   expenses: Expense[];
   filters: ExpenseFilters;
-  addExpense: (input: Omit<Expense, "id">) => void;
+  addExpense: (input: Omit<Expense, "id">) => boolean;
   setFilters: (patch: Partial<ExpenseFilters>) => void;
   clearFilters: () => void;
 };
@@ -41,8 +41,8 @@ export const useExpenseStore = create<ExpenseState>()((set) => ({
 
   addExpense: (input) => {
     const amount = Number(input.amount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
-    if (!input.description.trim()) return;
+    if (!Number.isFinite(amount) || amount <= 0) return false;
+    if (!input.description.trim()) return false;
     const category: ExpenseCategory = input.category ?? DEFAULT_EXPENSE_CATEGORY;
     const expense: Expense = {
       id: uid(),
@@ -54,6 +54,7 @@ export const useExpenseStore = create<ExpenseState>()((set) => ({
     };
     set((s) => ({ expenses: [expense, ...s.expenses] }));
     void persistExpense(expense);
+    return true;
   },
 
   setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),

@@ -1,7 +1,12 @@
 "use client";
 
 import { authErrorMessage } from "@/lib/auth/messages";
-import { getSupabase, getSupabaseEnv, ensureSupabaseEnv } from "@/lib/supabase/client";
+import {
+  describeSupabaseConfig,
+  ensureSupabaseEnv,
+  getSupabase,
+  getSupabaseEnv,
+} from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -12,10 +17,49 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [configured, setConfigured] = useState(getSupabaseEnv().configured);
 
   useEffect(() => {
-    void ensureSupabaseEnv().then(() => setConfigured(getSupabaseEnv().configured));
+    let cancelled = false;
+    let unsub = () => {};
+
+    void (async () => {
+      await ensureSupabaseEnv();
+      if (cancelled) return;
+      setConfigured(getSupabaseEnv().configured);
+
+      if (!getSupabaseEnv().configured) {
+        const d = await describeSupabaseConfig();
+        setError(d.hint || "Banco não configurado.");
+        setReady(true);
+        return;
+      }
+
+      const supabase = getSupabase();
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!cancelled) {
+        setHasSession(Boolean(session));
+        setReady(true);
+      }
+
+      const { data } = supabase.auth.onAuthStateChange((event, next) => {
+        if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          setHasSession(Boolean(next));
+        }
+        if (event === "SIGNED_OUT") setHasSession(false);
+      });
+      unsub = () => data.subscription.unsubscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   async function save() {
@@ -34,6 +78,12 @@ export default function ResetPasswordPage() {
       );
       return;
     }
+    if (!hasSession) {
+      setError(
+        "Este link não abriu a sessão de recuperação. Pede um novo e-mail em “Esqueci minha senha”.",
+      );
+      return;
+    }
     setPending(true);
     try {
       const supabase = getSupabase();
@@ -42,7 +92,8 @@ export default function ResetPasswordPage() {
         setError(authErrorMessage(updateError.message));
         return;
       }
-      router.replace("/login");
+      await supabase.auth.signOut();
+      router.replace("/login?reset=ok");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não deu para salvar a senha.");
     } finally {
@@ -64,31 +115,52 @@ export default function ResetPasswordPage() {
               Defina a senha nova depois de abrir o link do e-mail.
             </p>
           </div>
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Nova senha"
-            type="password"
-            autoComplete="new-password"
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-          />
-          <input
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Confirmar senha"
-            type="password"
-            autoComplete="new-password"
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-          />
-          {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => void save()}
-            className="w-full rounded-xl bg-[#166534] py-2 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {pending ? "Salvando..." : "Salvar senha"}
-          </button>
+
+          {!ready ? (
+            <p className="text-sm text-gray-500">A preparar…</p>
+          ) : !hasSession ? (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-rose-700">
+                Não encontramos a sessão de recuperação. O link pode ter expirado, ou o Supabase
+                redirecionou só para a home (falta liberar a URL no painel).
+              </p>
+              <Link
+                href="/esqueci-senha"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-[#166534] py-2 text-sm font-semibold text-white"
+              >
+                Pedir novo link
+              </Link>
+            </div>
+          ) : (
+            <>
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nova senha"
+                type="password"
+                autoComplete="new-password"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              />
+              <input
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Confirmar senha"
+                type="password"
+                autoComplete="new-password"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              />
+              {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => void save()}
+                className="w-full rounded-xl bg-[#166534] py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {pending ? "Salvando..." : "Salvar senha"}
+              </button>
+            </>
+          )}
+
           <Link href="/login" className="block text-center text-xs font-semibold text-[#166534]">
             Voltar ao login
           </Link>

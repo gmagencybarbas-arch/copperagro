@@ -1,5 +1,6 @@
 "use client";
 
+import { CardHelp } from "@/components/ui/card-help";
 import { SparklinePath } from "./sparkline-path";
 import { AN } from "./analytics-tokens";
 import { AlertTriangle, Clock3 } from "lucide-react";
@@ -75,9 +76,16 @@ export function ProjectionCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-            {title}
-          </h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {title}
+            </h3>
+            <CardHelp>
+              {mode === "global"
+                ? "Estima quanto tempo o inventário (em R$) aguenta ao ritmo semanal atual de vendas."
+                : "Estima em quantas semanas o estoque deste setor acaba, ao ritmo atual de saída."}
+            </CardHelp>
+          </div>
           <p className="mt-0.5 text-xs text-[#5c6b66]">
             {mode === "global" ? "Cobertura do inventário (R$ / semana)" : "Cobertura de stock a este ritmo"}
           </p>

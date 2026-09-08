@@ -3,7 +3,7 @@
 import { BigNumber, CleanInput, PrimaryButton } from "@/design-system";
 import { useDrawerStore } from "@/store/drawer-store";
 import {
-  DEFAULT_SECTOR_ID,
+  pickDefaultSectorId,
   pluralizeUnit,
   useSectorStore,
 } from "@/store/sector-store";
@@ -24,7 +24,7 @@ export function StockEntryDrawer() {
   const addStockEntry = useSalesStore((s) => s.addStockEntry);
   const sectors = useSectorStore((s) => s.sectors);
   const selectedSectorId = useSectorStore((s) => s.selectedSectorId);
-  const currentSectorId = selectedSectorId ?? DEFAULT_SECTOR_ID;
+  const currentSectorId = pickDefaultSectorId(sectors, selectedSectorId);
   const currentSector =
     sectors.find((s) => s.id === currentSectorId) ?? sectors[0];
   const unit = currentSector?.unit ?? "unidade";

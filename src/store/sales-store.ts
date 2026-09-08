@@ -142,10 +142,10 @@ type SalesState = {
     quantity: number;
     sectorId: string;
     note?: string;
-  }) => void;
+  }) => boolean;
   addSale: (
     input: Pick<Sale, "date" | "quantity" | "unitPrice" | "buyer" | "sectorId">,
-  ) => void;
+  ) => boolean;
   updateSale: (
     id: string,
     patch: Partial<Pick<Sale, "date" | "quantity" | "unitPrice" | "buyer">>,
@@ -200,10 +200,18 @@ export const useSalesStore = create<SalesState>()((set) => ({
 
       addStockEntry: (input) => {
         const qty = Math.floor(Number(input.quantity));
-        if (qty <= 0) return;
+        if (qty <= 0 || !input.sectorId) return false;
         let created: StockMovement | null = null;
         set((s) => {
           const movements = reconcileMovements(s.sales, s.stockMovements);
+          if (input.type === "exit") {
+            const { remaining } = computeStockSnapshot(
+              s.stockTotalSacas,
+              movements,
+              input.sectorId,
+            );
+            if (qty > remaining) return s;
+          }
           const mov: StockMovement = {
             id: uid(),
             date: input.date,
@@ -216,17 +224,23 @@ export const useSalesStore = create<SalesState>()((set) => ({
           return { stockMovements: [mov, ...movements] };
         });
         if (created) void persistStockMovement(created as StockMovement);
+        return created != null;
       },
 
       addSale: (input) => {
         const qty = Math.floor(Number(input.quantity));
         const price = Number(input.unitPrice);
-        if (qty <= 0 || price <= 0) return;
+        if (qty <= 0 || price <= 0 || !input.sectorId) return false;
+        if (!input.buyer.trim()) return false;
         let created: { sale: Sale; mov: StockMovement } | null = null;
 
         set((s) => {
           const movements = reconcileMovements(s.sales, s.stockMovements);
-          const { remaining } = computeStockState(s.stockTotalSacas, movements);
+          const { remaining } = computeStockSnapshot(
+            s.stockTotalSacas,
+            movements,
+            input.sectorId,
+          );
           if (qty > remaining) return s;
 
           const saleId = uid();
@@ -258,6 +272,7 @@ export const useSalesStore = create<SalesState>()((set) => ({
           const payload = created as { sale: Sale; mov: StockMovement };
           void persistSale(payload.sale, payload.mov);
         }
+        return created != null;
       },
 
       updateSale: (id, patch) => {

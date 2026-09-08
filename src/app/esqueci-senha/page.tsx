@@ -42,7 +42,7 @@ function ForgotInner() {
     try {
       const supabase = getSupabase();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(mail, {
-        redirectTo: `${window.location.origin}/redefinir-senha`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/redefinir-senha")}`,
       });
       if (resetError) {
         setError(authErrorMessage(resetError.message));

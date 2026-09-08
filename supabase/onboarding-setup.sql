@@ -1,0 +1,5 @@
+-- DEPRECATED — não executes este ficheiro no teu projeto real.
+-- Corre em vez disto: supabase/adapt-live-schema.sql
+--
+-- O onboarding-setup antigo criava profiles + organization_settings
+-- (não existem no teu banco).

@@ -1,8 +1,9 @@
 "use client";
 
 import { authErrorMessage } from "@/lib/auth/messages";
-import { hydrateOperationalData, loadProfileAndOrg } from "@/lib/db/hydrate";
+import { hydrateOperationalData, loadProfileAndOrgDetailed } from "@/lib/db/hydrate";
 import { getSupabase, getSupabaseEnv, ensureSupabaseEnv, describeSupabaseConfig } from "@/lib/supabase/client";
+import { useAuthStore } from "@/store/auth-store";
 import { BarChart3, LineChart, Sprout, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -50,13 +51,14 @@ export default function LoginPage() {
         setError("Não foi possível entrar.");
         return;
       }
-      const ok = await loadProfileAndOrg(data.user.id, data.user.email ?? mail);
-      if (!ok) {
-        setError("Conta autenticada, mas o perfil ainda não existe no banco. Rode o SQL do schema.");
+      const result = await loadProfileAndOrgDetailed(data.user.id, data.user.email ?? mail);
+      if (!result.ok) {
+        setError(result.error ?? "Conta autenticada, mas a organização não foi encontrada.");
         return;
       }
       await hydrateOperationalData();
-      router.replace("/dashboard");
+      const done = useAuthStore.getState().company?.onboardingCompleted;
+      router.replace(done ? "/dashboard" : "/onboarding");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no login.");
     } finally {

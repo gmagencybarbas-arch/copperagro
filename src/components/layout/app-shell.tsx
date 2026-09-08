@@ -13,7 +13,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDrawerStore } from "@/store/drawer-store";
 import { usePlanStore } from "@/store/plan-store";
 import { useSalesStore } from "@/store/sales-store";
-import { DEFAULT_SECTOR_ID, useSectorStore } from "@/store/sector-store";
+import { pickDefaultSectorId, useSectorStore } from "@/store/sector-store";
 import { beginRouteLoading } from "@/store/nav-loading-store";
 import { useUIStore } from "@/store/ui-store";
 import {
@@ -56,7 +56,7 @@ const nav = [
     Icon: LineChart,
   },
   {
-    href: `/setor/${DEFAULT_SECTOR_ID}`,
+    href: "/vendas",
     label: "Vendas",
     shortLabel: "Vendas",
     Icon: ClipboardList,
@@ -72,7 +72,7 @@ const nav = [
 /** Ordem: Painel, Análises, Vendas, Despesas, Estoque (Despesas logo após Vendas). */
 const mobileNav = [
   { href: "/dashboard", shortLabel: "Painel", Icon: LayoutGrid },
-  { href: `/setor/${DEFAULT_SECTOR_ID}` as const, shortLabel: "Vendas", Icon: ClipboardList },
+  { href: "/vendas" as const, shortLabel: "Vendas", Icon: ClipboardList },
   { href: "/despesas", shortLabel: "Despesas", Icon: Wallet },
   { href: "/estoque", shortLabel: "Estoque", Icon: PackageOpen },
   { href: "#more", shortLabel: "Mais", Icon: MoreHorizontal },
@@ -238,7 +238,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-4" aria-label="Principal">
-          {nav.filter((item) => !item.href.startsWith("/setor/")).map((item) => {
+          {nav.filter((item) => item.href !== "/vendas" && !item.href.startsWith("/setor/")).map((item) => {
             const active = pathname === item.href;
             const Icon = item.Icon;
             const isAgroAi = item.href === "/agro-ai";
@@ -436,9 +436,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {mobileNav.map((item) => {
           const isMore = item.href === "#more";
-          const isSales = item.href.startsWith("/setor/");
+          const isSales = item.href === "/vendas" || item.href.startsWith("/setor/");
           const active = isSales
-            ? Boolean(pathname?.startsWith("/setor/"))
+            ? Boolean(pathname?.startsWith("/setor/") || pathname === "/vendas")
             : isMore
               ? moreOpen
               : pathname === item.href;
@@ -486,9 +486,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     setOpenSaleAfterSector(false);
                     setSectorModalOpen(true);
                   } else {
-                    setSelectedSector(DEFAULT_SECTOR_ID);
-                    beginRouteLoading(`/setor/${DEFAULT_SECTOR_ID}`);
-                    router.push(`/setor/${DEFAULT_SECTOR_ID}`);
+                    const sid = pickDefaultSectorId(useSectorStore.getState().sectors);
+                    if (!sid) return;
+                    setSelectedSector(sid);
+                    beginRouteLoading(`/setor/${sid}`);
+                    router.push(`/setor/${sid}`);
                   }
                 }}
                 className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 transition-all duration-150 active:scale-[0.98] ${

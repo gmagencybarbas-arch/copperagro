@@ -24,6 +24,7 @@ import { ProjectionCard } from "./components/projection-card";
 import { SimulationPanel } from "./components/simulation-panel";
 import { InsightsList, type InsightTone, PrimaryInsightCard } from "./components/insights-list";
 import { Card } from "@/design-system";
+import { TableScroll } from "@/components/table-scroll";
 import { EXPENSE_CATEGORY_LABEL, type ExpenseCategory } from "@/types/expense";
 import { ArrowUpRight, LayoutDashboard, Sparkles } from "lucide-react";
 import { AN } from "./components/analytics-tokens";
@@ -255,6 +256,12 @@ export function AnalysesView() {
       setPriceExpect(activeSector.averagePrice);
     }
   }, [viewMode, activeSector, analysesSectorId]);
+
+  useEffect(() => {
+    if (!analysesSectorId && sectors[0]?.id) {
+      setAnalysesSectorId(sectors[0].id);
+    }
+  }, [analysesSectorId, sectors, setAnalysesSectorId]);
 
   useEffect(() => {
     setGlobalSimWeekly(g.weeklyRevenue);
@@ -611,7 +618,8 @@ export function AnalysesView() {
           )}
 
           {simulationScope === "allSectors" && viewMode === "sector" && (
-            <Card className="overflow-x-auto border-[#e6eae8] p-0 shadow-sm">
+            <Card className="overflow-hidden border-[#e6eae8] p-0 shadow-sm">
+              <TableScroll>
               <table className="w-full min-w-[600px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-[#e6eae8] bg-[#f7f9f8] text-xs uppercase text-[#5c6b66]">
@@ -646,6 +654,7 @@ export function AnalysesView() {
                   ))}
                 </tbody>
               </table>
+              </TableScroll>
             </Card>
           )}
 

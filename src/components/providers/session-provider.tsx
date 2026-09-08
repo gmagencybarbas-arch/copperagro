@@ -40,8 +40,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           resetOperationalStores();
           return;
         }
+        if (event === "PASSWORD_RECOVERY") {
+          // Sessão de recovery: não hidrata o painel aqui; a página /redefinir-senha trata.
+          return;
+        }
         if (!nextSession?.user) return;
-        if (event === "SIGNED_IN") {
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
           void applySession(nextSession.user.id, nextSession.user.email ?? "", true);
         }
       });

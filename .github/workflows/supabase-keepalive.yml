@@ -1,0 +1,30 @@
+# Ping diário ao Supabase CopperAgro — evita pausa por inatividade (free tier).
+# Secrets necessários no GitHub (Settings → Secrets → Actions):
+#   SUPABASE_URL  = Project URL
+#   SUPABASE_KEY  = service_role (recomendado) ou anon/publishable key
+
+name: Supabase keepalive
+
+on:
+  schedule:
+    # Todo dia às 12:00 UTC (~09:00 Brasil)
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Bump keepalive (+1 users do dia)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: node scripts/supabase-keepalive.mjs

@@ -6,7 +6,7 @@ import { formatBRLFine } from "@/lib/format";
 import { SECTOR_TAB_ACTIVE } from "@/lib/sector-palette";
 import { useDrawerStore } from "@/store/drawer-store";
 import {
-  DEFAULT_SECTOR_ID,
+  pickDefaultSectorId,
   pluralizeUnit,
   useSectorStore,
 } from "@/store/sector-store";
@@ -30,7 +30,7 @@ export function SaleDrawer() {
   const sectors = useSectorStore((s) => s.sectors);
   const setSelectedSector = useSectorStore((s) => s.setSelectedSector);
 
-  const [saleSectorId, setSaleSectorId] = useState(DEFAULT_SECTOR_ID);
+  const [saleSectorId, setSaleSectorId] = useState("");
   const currentSector =
     sectors.find((s) => s.id === saleSectorId) ?? sectors[0];
   const unit = currentSector?.unit ?? "unidade";
@@ -51,7 +51,7 @@ export function SaleDrawer() {
     if (!open) return;
     const selected = useSectorStore.getState().selectedSectorId;
     const list = useSectorStore.getState().sectors;
-    setSaleSectorId(selected ?? list[0]?.id ?? DEFAULT_SECTOR_ID);
+    setSaleSectorId(pickDefaultSectorId(list, selected));
     setDate(todayISO());
     setQuantity(1);
     setUnitPrice(800);

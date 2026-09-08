@@ -1,7 +1,7 @@
 "use client";
 
 import { authErrorMessage } from "@/lib/auth/messages";
-import { hydrateOperationalData, loadProfileAndOrg } from "@/lib/db/hydrate";
+import { hydrateOperationalData, loadProfileAndOrgDetailed } from "@/lib/db/hydrate";
 import { getSupabase, getSupabaseEnv, ensureSupabaseEnv } from "@/lib/supabase/client";
 import { Mail } from "lucide-react";
 import Link from "next/link";
@@ -71,6 +71,7 @@ export default function SignupPage() {
           data: {
             name: name.trim() || mail.split("@")[0],
             company_name: companyName.trim() || "Minha Fazenda",
+            onboarding_pending: true,
           },
         },
       });
@@ -87,9 +88,13 @@ export default function SignupPage() {
         setAwaitingEmail(true);
         return;
       }
-      const ok = await loadProfileAndOrg(data.user.id, data.user.email ?? mail);
-      if (ok) await hydrateOperationalData();
-      router.replace("/dashboard");
+      const result = await loadProfileAndOrgDetailed(data.user.id, data.user.email ?? mail);
+      if (!result.ok) {
+        setError(result.error ?? "Conta criada, mas a organização falhou.");
+        return;
+      }
+      await hydrateOperationalData();
+      router.replace("/onboarding");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no cadastro.");
     } finally {
@@ -103,7 +108,7 @@ export default function SignupPage() {
     try {
       const supabase = getSupabase();
       await supabase.auth.resetPasswordForEmail(mail, {
-        redirectTo: `${window.location.origin}/redefinir-senha`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/redefinir-senha")}`,
       });
       router.push(`/esqueci-senha?email=${encodeURIComponent(mail)}&enviado=1`);
     } catch {

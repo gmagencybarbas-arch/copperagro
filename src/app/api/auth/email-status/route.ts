@@ -9,15 +9,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ exists: false }, { status: 400 });
     }
 
-    const admin = getSupabaseAdmin();
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("id")
-      .ilike("email", email)
-      .maybeSingle();
-
-    if (profile?.id) {
-      return NextResponse.json({ exists: true });
+    // Sem tabela profiles: consulta Auth Admin
+    try {
+      const admin = getSupabaseAdmin();
+      const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      if (!error && data?.users?.length) {
+        const exists = data.users.some((u) => (u.email ?? "").toLowerCase() === email);
+        if (exists) return NextResponse.json({ exists: true });
+      }
+    } catch {
+      // cai no fetch HTTP abaixo
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";

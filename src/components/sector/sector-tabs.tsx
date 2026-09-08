@@ -24,7 +24,7 @@ export function SectorTabs() {
 
   return (
     <div
-      className="flex gap-2 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="table-scroll flex gap-2 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="tablist"
       aria-label="Setores"
     >

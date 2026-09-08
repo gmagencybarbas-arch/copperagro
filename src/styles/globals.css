@@ -78,6 +78,117 @@ html.dark body {
   background-color: color-mix(in oklab, var(--color-app-green-bright) 22%, transparent);
 }
 
+/* Frame ReUI-like — painéis do dashboard (light = paper/white, dark = charcoal) */
+:root {
+  --frame-radius: 1rem;
+  --frame-border-radius: calc(var(--frame-radius) - 1px);
+  --frame-panel-border-color: #e5e7eb;
+}
+
+html.dark {
+  --frame-panel-border-color: rgba(148, 163, 184, 0.18);
+}
+
+.frame-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--frame-radius);
+  border: 1px solid var(--frame-panel-border-color);
+  background: #ffffff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -16px rgba(15, 23, 42, 0.12);
+}
+
+html.dark .frame-panel {
+  background: #111827;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 12px 28px -18px rgba(0, 0, 0, 0.65);
+}
+
+.frame-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--frame-panel-border-color);
+  padding: 0.875rem 1.25rem;
+  background: color-mix(in oklab, #f9fafb 88%, transparent);
+}
+
+html.dark .frame-panel-header {
+  background: color-mix(in oklab, #0b1220 70%, transparent);
+}
+
+.frame-kpi-strip {
+  display: grid;
+  gap: 0;
+  border-bottom: 1px solid var(--frame-panel-border-color);
+}
+
+@media (min-width: 640px) {
+  .frame-kpi-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.frame-kpi-cell {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--frame-panel-border-color);
+}
+
+@media (min-width: 640px) {
+  .frame-kpi-cell {
+    border-bottom: 0;
+    border-right: 1px solid var(--frame-panel-border-color);
+  }
+  .frame-kpi-cell:last-child {
+    border-right: 0;
+  }
+}
+
+.frame-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  border-radius: 0.625rem;
+  border: 1px solid var(--frame-panel-border-color);
+  background: #fff;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  transition: background-color 160ms var(--app-ease), color 160ms var(--app-ease), border-color 160ms var(--app-ease);
+}
+
+.frame-chip:hover {
+  background: #f3f4f6;
+}
+
+.frame-chip[data-active="true"] {
+  border-color: color-mix(in oklab, #166534 35%, var(--frame-panel-border-color));
+  background: #ecfdf5;
+  color: #14532d;
+}
+
+html.dark .frame-chip {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+html.dark .frame-chip:hover {
+  background: #1e293b;
+}
+
+html.dark .frame-chip[data-active="true"] {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(6, 78, 59, 0.45);
+  color: #a7f3d0;
+}
+
 /* CoopFinance splash */
 @keyframes coop-bean-float {
   0%,
@@ -276,6 +387,35 @@ html.dark .agro-chat-paper {
   }
 }
 
+/*
+ * Scroll horizontal de tabelas no mobile:
+ * pan livre no eixo X, momentum iOS, sem “brigar” com o scroll da página.
+ * Sem scroll-behavior:smooth aqui — no touch isso trava o arrastar.
+ */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: thin;
+}
+
+.table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklab, #94a3b8 55%, transparent);
+}
+
+.table-scroll > table,
+.table-scroll > * {
+  touch-action: pan-x pan-y;
+}
+
 /* Transições globais mínimas em elementos interactivos (leves, sem atraso perceptível) */
 @media (prefers-reduced-motion: no-preference) {
   :where(
@@ -305,5 +445,27 @@ html.dark .agro-chat-paper {
     ) {
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
+  }
+}
+
+@keyframes ob-pop {
+  0% {
+    transform: translateY(-8px) scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ob-fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 0;
   }
 }

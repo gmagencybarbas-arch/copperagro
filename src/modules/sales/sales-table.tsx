@@ -1,5 +1,6 @@
 "use client";
 
+import { TableScroll } from "@/components/table-scroll";
 import { Card, CleanInput, PrimaryButton, Title } from "@/design-system";
 import {
   formatPctDelta,
@@ -15,6 +16,9 @@ import {
 } from "@/store/sales-store";
 import type { Sale } from "@/types/sale";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   CalendarRange,
   ChevronLeft,
   ChevronRight,
@@ -300,7 +304,7 @@ function SalesTableInner({ embed = false }: { embed?: boolean }) {
       </Card>
 
       <Card className="overflow-hidden border border-gray-100 p-0 shadow-sm transition-all duration-300 hover:shadow-md dark:border-slate-800">
-        <div className="border-b border-gray-100 bg-gray-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/60">
+        <div className="border-b border-gray-100 bg-gray-50/80 px-4 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900/60">
           <Title className="text-gray-700 dark:text-slate-200">
             Vendas registradas
           </Title>
@@ -309,51 +313,99 @@ function SalesTableInner({ embed = false }: { embed?: boolean }) {
               ? `${sales.length} ${sales.length === 1 ? "linha" : "linhas"}`
               : `${filtered.length} de ${sales.length} linhas`}
           </p>
+          {/* Controles de ordenação grandes no mobile — o cabeçalho da tabela fica pequeno demais */}
+          <div className="mt-3 md:hidden">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Ordenar por
+            </p>
+            <div className="table-scroll flex gap-2 pb-1">
+              {(
+                [
+                  ...columns.slice(0, 4),
+                  { key: "buyer" as SortKey, label: "Comprador" },
+                ] as const
+              ).map((c) => {
+                const active = sortKey === c.key;
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => toggleSort(c.key)}
+                    className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold transition-colors active:scale-[0.98] ${
+                      active
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100"
+                        : "border-gray-200 bg-white text-gray-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                    }`}
+                  >
+                    {c.label}
+                    {active ? (
+                      dir === "asc" ? (
+                        <ArrowUp className="h-4 w-4" strokeWidth={2.25} />
+                      ) : (
+                        <ArrowDown className="h-4 w-4" strokeWidth={2.25} />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-4 w-4 opacity-45" strokeWidth={2} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <TableScroll>
           <table className="min-w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500 dark:border-slate-800 dark:text-slate-400">
                 {columns.slice(0, 4).map((c) => (
                   <th
                     key={c.key}
-                    className={`cursor-pointer select-none whitespace-nowrap px-6 py-3 font-semibold transition-colors duration-200 hover:bg-gray-50/90 dark:hover:bg-slate-800/80 ${
+                    scope="col"
+                    className={`whitespace-nowrap px-2 py-2 sm:px-4 ${
                       c.align === "right" ? "text-right" : ""
                     }`}
-                    onClick={() => toggleSort(c.key)}
                   >
-                    <span className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(c.key)}
+                      className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 font-semibold transition-colors duration-200 hover:bg-gray-100/90 active:scale-[0.98] dark:hover:bg-slate-800/80 ${
+                        c.align === "right" ? "ml-auto" : ""
+                      } ${sortKey === c.key ? "text-emerald-800 dark:text-emerald-300" : ""}`}
+                    >
                       {c.label}
                       <SortGlyph
                         active={sortKey === c.key}
                         dir={sortKey === c.key ? dir : "asc"}
                       />
-                    </span>
+                    </button>
                   </th>
                 ))}
                 <th
                   className="max-w-[9rem] whitespace-normal px-4 py-3 text-right font-semibold leading-tight"
-                  title={`No período filtrado, ordena por R$/${unit} (menor→maior): % do preço unitário face ao lançamento imediatamente anterior nessa ordem`}
+                  title="Diferença % do preço por unidade em relação à venda imediatamente mais barata (na ordem de preço do período filtrado)"
                 >
-                  vs antecessor (↑ unit.)
+                  vs preço anterior
                 </th>
                 <th
                   className="max-w-[9rem] whitespace-normal px-4 py-3 text-right font-semibold leading-tight"
-                  title="% de diferença do valor total da linha face ao menor total entre todas as vendas do período filtrado"
+                  title="Diferença % do valor total desta venda em relação à venda de menor total no período filtrado"
                 >
                   vs menor total
                 </th>
-                <th
-                  className="cursor-pointer select-none whitespace-nowrap px-6 py-3 font-semibold transition-colors duration-200 hover:bg-gray-50/90 dark:hover:bg-slate-800/80"
-                  onClick={() => toggleSort("buyer")}
-                >
-                  <span className="inline-flex items-center gap-1">
+                <th scope="col" className="whitespace-nowrap px-2 py-2 sm:px-4">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("buyer")}
+                    className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 font-semibold transition-colors duration-200 hover:bg-gray-100/90 active:scale-[0.98] dark:hover:bg-slate-800/80 ${
+                      sortKey === "buyer" ? "text-emerald-800 dark:text-emerald-300" : ""
+                    }`}
+                  >
                     Comprador
                     <SortGlyph
                       active={sortKey === "buyer"}
                       dir={sortKey === "buyer" ? dir : "asc"}
                     />
-                  </span>
+                  </button>
                 </th>
               </tr>
             </thead>
@@ -413,6 +465,7 @@ function SalesTableInner({ embed = false }: { embed?: boolean }) {
               ))}
             </tbody>
           </table>
+        </TableScroll>
 
           {sorted.length === 0 && (
             <div className="px-6 py-16 text-center">
@@ -513,7 +566,6 @@ function SalesTableInner({ embed = false }: { embed?: boolean }) {
               </div>
             </div>
           )}
-        </div>
       </Card>
 
       {detailSale && (
@@ -760,7 +812,7 @@ function SaleDetailModal({
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-medium text-gray-600 dark:text-slate-400">
-                  vs antecessor (↑ R$/{unit})
+                  vs preço anterior (R$/{unit})
                 </p>
                 <p
                   className={`mt-1 text-xl font-bold tabular-nums sm:text-2xl ${pctClass(
@@ -784,9 +836,10 @@ function SaleDetailModal({
               </div>
             </div>
             <p className="mt-2 text-[11px] leading-snug text-gray-500 dark:text-slate-500">
-              Antecessor = lançamento anterior ao ordenar por menor preço
-              unitário no mesmo recorte; menor total = menor valor total entre as
-              linhas desse filtro.
+              <strong>Preço anterior:</strong> quanto esta venda está acima ou
+              abaixo da venda logo mais barata no mesmo filtro.{" "}
+              <strong>Menor total:</strong> quanto o valor total desta linha
+              está acima da venda mais barata (em R$) do filtro.
             </p>
           </div>
           {error && (
@@ -830,20 +883,27 @@ function SaleDetailModal({
 }
 
 function SortGlyph({ active, dir }: { active: boolean; dir: Dir }) {
-  return (
-    <span
-      className={`inline-flex flex-col leading-[0.5] text-[9px] transition-colors duration-200 ${
-        active ? "text-[#16a34a]" : "text-gray-300"
-      }`}
+  if (!active) {
+    return (
+      <ArrowUpDown
+        className="h-4 w-4 shrink-0 text-gray-300 dark:text-slate-600"
+        strokeWidth={2.25}
+        aria-hidden
+      />
+    );
+  }
+  return dir === "asc" ? (
+    <ArrowUp
+      className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+      strokeWidth={2.5}
       aria-hidden
-    >
-      <span className={active && dir === "asc" ? "opacity-100" : "opacity-40"}>
-        ▲
-      </span>
-      <span className={active && dir === "desc" ? "opacity-100" : "opacity-40"}>
-        ▼
-      </span>
-    </span>
+    />
+  ) : (
+    <ArrowDown
+      className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+      strokeWidth={2.5}
+      aria-hidden
+    />
   );
 }
 

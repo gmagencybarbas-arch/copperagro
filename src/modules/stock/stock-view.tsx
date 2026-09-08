@@ -1,12 +1,14 @@
 "use client";
 
 import { AnimatedNumber } from "@/components/animated-number";
+import { TableScroll } from "@/components/table-scroll";
+import { CardHelp, CardHelpLabel } from "@/components/ui/card-help";
 import { BigNumber, Card, CleanInput } from "@/design-system";
 import { useDrawerStore } from "@/store/drawer-store";
 import { pluralizeUnit, useSectorStore } from "@/store/sector-store";
 import { useSalesStore } from "@/store/sales-store";
 import type { StockMovement } from "@/types/sale";
-import { Activity, Boxes, ChevronDown, Filter, History, Plus } from "lucide-react";
+import { Activity, ChevronDown, Filter, History, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -54,13 +56,13 @@ function buildMonthlyVolumes(movements: StockMovement[]): MonthlyBucket[] {
 function MonthlyMovementChart({ data }: { data: MonthlyBucket[] }) {
   const maxVal = Math.max(1, ...data.flatMap((d) => [d.entries, d.exits]));
   if (!data.length) {
-    return <p className="text-sm text-gray-500">Sem dados no período filtrado.</p>;
+    return <p className="text-sm text-gray-500 dark:text-slate-400">Sem dados no período filtrado.</p>;
   }
   return (
     <div className="space-y-3">
       {data.map((row) => (
         <div key={row.month} className="space-y-1.5">
-          <p className="text-xs font-semibold text-gray-500">{monthLabelPt(row.month)}</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-slate-300">{monthLabelPt(row.month)}</p>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-16 text-[11px] text-emerald-700">Entrada</span>
@@ -70,7 +72,7 @@ function MonthlyMovementChart({ data }: { data: MonthlyBucket[] }) {
                   style={{ width: `${Math.max(4, (row.entries / maxVal) * 100)}%` }}
                 />
               </div>
-              <span className="w-16 text-right text-xs tabular-nums text-gray-700">
+              <span className="w-16 text-right text-xs tabular-nums text-gray-700 dark:text-slate-100">
                 {fmtInt(row.entries)}
               </span>
             </div>
@@ -82,7 +84,7 @@ function MonthlyMovementChart({ data }: { data: MonthlyBucket[] }) {
                   style={{ width: `${Math.max(4, (row.exits / maxVal) * 100)}%` }}
                 />
               </div>
-              <span className="w-16 text-right text-xs tabular-nums text-gray-700">
+              <span className="w-16 text-right text-xs tabular-nums text-gray-700 dark:text-slate-100">
                 {fmtInt(row.exits)}
               </span>
             </div>
@@ -157,8 +159,8 @@ export function StockView() {
               Análises
             </Link>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Estoque</h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-gray-600">
+          <h1 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-slate-50">Estoque</h1>
+          <p className="max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-slate-300">
             Gestão global de movimentos com filtro por setor independente da tela de vendas.
           </p>
         </div>
@@ -207,11 +209,17 @@ export function StockView() {
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {stockBySector.map(({ sector, remaining }) => (
             <Card key={sector.id} className="border border-gray-100 p-6 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{sector.name}</p>
-              <BigNumber className="mt-3 text-gray-900">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                <CardHelpLabel
+                  help={`Quanto ainda resta de ${sector.name} (${pluralizeUnit(sector.unit, 2)}): entradas menos saídas.`}
+                >
+                  {sector.name}
+                </CardHelpLabel>
+              </p>
+              <BigNumber className="mt-3 text-gray-900 dark:text-slate-50">
                 <AnimatedNumber value={remaining} format={(n) => fmtInt(n)} />
               </BigNumber>
-              <p className="mt-2 text-[11px] text-gray-500">{pluralizeUnit(sector.unit, remaining)} restantes</p>
+              <p className="mt-2 text-[11px] text-gray-500 dark:text-slate-400">{pluralizeUnit(sector.unit, remaining)} restantes</p>
             </Card>
           ))}
         </section>
@@ -220,15 +228,19 @@ export function StockView() {
           <Card className="border border-gray-100 p-6 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Estoque restante</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  <CardHelpLabel help="Saldo atual deste setor após entradas e saídas (vendas e baixas manuais).">
+                    Estoque restante
+                  </CardHelpLabel>
+                </p>
                 <p className="mt-2 text-xs text-gray-500">{selectedSector?.name ?? "Setor"}</p>
               </div>
               <Activity className="h-5 w-5 text-emerald-600/80" strokeWidth={1.75} />
             </div>
-            <BigNumber className="mt-4 text-gray-900">
+            <BigNumber className="mt-4 text-gray-900 dark:text-slate-50">
               <AnimatedNumber value={selectedStock} format={(n) => fmtInt(n)} />
             </BigNumber>
-            <p className="mt-2 text-[11px] text-gray-500">
+            <p className="mt-2 text-[11px] text-gray-500 dark:text-slate-400">
               Remaining stock: {fmtInt(selectedStock)} {pluralizeUnit(selectedSector?.unit ?? "unidade", selectedStock)}
             </p>
           </Card>
@@ -240,8 +252,13 @@ export function StockView() {
           <div className="flex flex-wrap items-center gap-2">
             <History className="h-5 w-5 shrink-0 text-gray-400" strokeWidth={1.75} />
             <div>
-              <h2 className="text-lg font-semibold tracking-tight text-gray-900">Movimento mensal</h2>
-              <p className="mt-1 text-xs text-gray-500">Entradas e saídas por mês no filtro atual.</p>
+              <h2 className="inline-flex items-center gap-1.5 text-lg font-semibold tracking-tight text-gray-900 dark:text-slate-50">
+                Movimento mensal
+                <CardHelp>
+                  Entradas e saídas agrupadas por mês, no filtro de setor e tipo atual.
+                </CardHelp>
+              </h2>
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">Entradas e saídas por mês no filtro atual.</p>
             </div>
           </div>
         </div>
@@ -288,10 +305,10 @@ export function StockView() {
         </Card>
 
         <Card className="overflow-hidden border border-gray-100 shadow-sm">
-          <div className="overflow-x-auto">
+          <TableScroll>
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/80 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                <tr className="border-b border-gray-100 bg-gray-50/80 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
                   <th className="px-4 py-3">Data</th>
                   <th className="px-4 py-3">Setor</th>
                   <th className="px-4 py-3">Tipo</th>
@@ -303,7 +320,7 @@ export function StockView() {
               <tbody>
                 {tableRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 dark:text-slate-400">
                       {movements.length > 0 ? "Nenhum movimento corresponde aos filtros." : "Sem movimentos registados."}
                     </td>
                   </tr>
@@ -313,9 +330,9 @@ export function StockView() {
                     const movementSector = sectorById.get(m.sectorId);
                     const movementUnit = movementSector?.unit ?? "unidade";
                     return (
-                      <tr key={m.id} className="border-b border-gray-50 transition-colors hover:bg-gray-50/60">
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-800">{fmtDate.format(new Date(m.date))}</td>
-                        <td className="px-4 py-3 text-gray-700">{movementSector?.name ?? "—"}</td>
+                      <tr key={m.id} className="border-b border-gray-50 transition-colors hover:bg-gray-50/60 dark:border-slate-800/80 dark:hover:bg-slate-800/40">
+                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-800 dark:text-slate-100">{fmtDate.format(new Date(m.date))}</td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-slate-100">{movementSector?.name ?? "—"}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${entry ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200/90"}`}>
                             {entry ? "Entrada" : "Saída"}
@@ -324,8 +341,8 @@ export function StockView() {
                         <td className={`px-4 py-3 text-right font-semibold tabular-nums ${entry ? "text-emerald-700 dark:text-emerald-300/90" : "text-rose-800 dark:text-rose-200/90"}`}>
                           {entry ? "+" : "−"}{new Intl.NumberFormat("pt-BR").format(m.quantity)}
                         </td>
-                        <td className="px-4 py-3 text-gray-600">{pluralizeUnit(movementUnit, m.quantity)}</td>
-                        <td className="max-w-[240px] truncate px-4 py-3 text-gray-600">
+                        <td className="px-4 py-3 text-gray-600 dark:text-slate-200">{pluralizeUnit(movementUnit, m.quantity)}</td>
+                        <td className="max-w-[240px] truncate px-4 py-3 text-gray-600 dark:text-slate-300">
                           {m.note ?? (m.relatedSaleId ? `Venda · ${m.relatedSaleId.slice(0, 8)}...` : "—")}
                         </td>
                       </tr>
@@ -334,15 +351,15 @@ export function StockView() {
                 )}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
           {hasMore && (
-            <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-4 text-center">
+            <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-4 text-center dark:border-slate-800 dark:bg-slate-900/40">
               <button
                 type="button"
                 onClick={() => setVisibleCount((c) => c + PAGE)}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50/40"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/30"
               >
-                <ChevronDown className="h-4 w-4 text-emerald-700" strokeWidth={2} />
+                <ChevronDown className="h-4 w-4 text-emerald-700 dark:text-emerald-400" strokeWidth={2} />
                 Carregar mais ({Math.min(PAGE, remainingRows)})
               </button>
             </div>

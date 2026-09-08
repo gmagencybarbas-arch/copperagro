@@ -1,6 +1,8 @@
 "use client";
 
 import { AnimatedNumber } from "@/components/animated-number";
+import { TableScroll } from "@/components/table-scroll";
+import { CardHelp } from "@/components/ui/card-help";
 import { BigNumber, Card, Title } from "@/design-system";
 import {
   alignPriceSeriesPair,
@@ -35,7 +37,6 @@ import {
   ArrowRight,
   Clock3,
   DollarSign,
-  Info,
   Layers,
   Package,
   Timer,
@@ -43,91 +44,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import {
-  useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
-/** Balão com `position: fixed` para nunca ser cortado por `overflow` dos cards. */
+/** Compat: MetricHint → CardHelp (hover / clique / fora). */
 function MetricHint({ children }: { children: React.ReactNode }) {
-  const rootRef = useRef<HTMLSpanElement>(null);
-  const bubbleRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
-
-  const place = useCallback(() => {
-    const root = rootRef.current;
-    const bubble = bubbleRef.current;
-    if (!root || !bubble) return;
-    const icon = root.querySelector("svg");
-    if (!icon) return;
-    const r = icon.getBoundingClientRect();
-    const pad = 12;
-    const bw = bubble.offsetWidth || 224;
-    const bh = bubble.offsetHeight || 72;
-    let left = r.left + r.width / 2 - bw / 2;
-    left = Math.max(pad, Math.min(left, window.innerWidth - bw - pad));
-    let top = r.top - bh - 8;
-    if (top < pad) {
-      top = r.bottom + 8;
-    }
-    if (top + bh > window.innerHeight - pad) {
-      top = Math.max(pad, window.innerHeight - bh - pad);
-    }
-    setCoords({ top, left });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    place();
-  }, [open, place]);
-
-  useEffect(() => {
-    if (!open) return;
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
-    return () => {
-      window.removeEventListener("scroll", place, true);
-      window.removeEventListener("resize", place);
-    };
-  }, [open, place]);
-
-  return (
-    <span
-      ref={rootRef}
-      className="relative inline-flex shrink-0 align-middle"
-      onMouseEnter={() => {
-        setOpen(true);
-        requestAnimationFrame(() => requestAnimationFrame(place));
-      }}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <Info
-        className={`h-3.5 w-3.5 cursor-help transition-colors duration-200 ${open ? "text-[#15803d]" : "text-gray-400"}`}
-        strokeWidth={2}
-        aria-hidden
-      />
-      <div
-        ref={bubbleRef}
-        role="tooltip"
-        style={{
-          position: "fixed",
-          top: coords.top,
-          left: coords.left,
-          zIndex: 9999,
-          pointerEvents: "none",
-          opacity: open ? 1 : 0,
-          visibility: open ? "visible" : "hidden",
-        }}
-        className="w-56 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-left text-[11px] leading-snug text-gray-600 shadow-xl ring-1 ring-black/5 transition-opacity duration-150"
-      >
-        {children}
-      </div>
-    </span>
-  );
+  return <CardHelp>{children}</CardHelp>;
 }
 
 function TrendDual({
@@ -596,7 +520,7 @@ export function DashboardView() {
           </Link>
         </div>
         <Card className="overflow-hidden rounded-[22px] border border-gray-100 bg-white shadow-sm">
-          <div className="overflow-x-auto">
+          <TableScroll>
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/80 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
@@ -646,7 +570,7 @@ export function DashboardView() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         </Card>
       </section>
 

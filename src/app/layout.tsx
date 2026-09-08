@@ -1,4 +1,5 @@
 import { SessionProvider } from "@/components/providers/session-provider";
+import { AuthRecoveryRedirect } from "@/components/providers/auth-recovery-redirect";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -33,7 +34,10 @@ export default function RootLayout({
         className={`${inter.variable} bg-[#f9fafb] font-sans text-gray-900 antialiased dark:bg-slate-900 dark:text-slate-100`}
       >
         <ThemeProvider>
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider>
+            <AuthRecoveryRedirect />
+            {children}
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

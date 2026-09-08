@@ -1,5 +1,6 @@
 "use client";
 
+import { CardHelp } from "@/components/ui/card-help";
 import { formatBRL } from "@/lib/format";
 import { SparklinePath } from "./sparkline-path";
 import { AN } from "./analytics-tokens";
@@ -9,14 +10,25 @@ type Variant = "revenue" | "expense" | "profit";
 
 const variantStyles: Record<
   Variant,
-  { line: string; label: string; card: string }
+  { line: string; label: string; card: string; help: string }
 > = {
-  revenue: { line: AN.green, label: "Faturamento", card: "border-[#e6eae8] bg-white" },
-  expense: { line: AN.red, label: "Despesas", card: "border-[#e6eae8] bg-white" },
+  revenue: {
+    line: AN.green,
+    label: "Faturamento",
+    card: "border-[#e6eae8] bg-white",
+    help: "Soma das vendas (R$) na visão atual. O % compara com a semana anterior.",
+  },
+  expense: {
+    line: AN.red,
+    label: "Despesas",
+    card: "border-[#e6eae8] bg-white",
+    help: "Soma das despesas no mesmo recorte. No % de despesas, subir é pior.",
+  },
   profit: {
     line: AN.profit,
     label: "Resultado",
     card: "border-[#1f7a63]/20 bg-gradient-to-br from-white to-[#1f7a63]/[0.04] ring-1 ring-[#1f7a63]/10",
+    help: "Faturamento menos despesas. É o lucro (ou prejuízo) do período.",
   },
 };
 
@@ -51,8 +63,9 @@ export function KPIWithSparkline({
       className={`group relative flex min-h-[132px] flex-col justify-between rounded-2xl border p-5 shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-200 ease-app hover:shadow-md hover:shadow-slate-900/[0.06] ${vs.card}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#5c6b66]">
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#5c6b66]">
           {vs.label}
+          <CardHelp>{vs.help}</CardHelp>
         </p>
         <div
           className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${

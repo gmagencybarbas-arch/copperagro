@@ -1,116 +1,32 @@
 "use client";
 
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/types/expense";
+import { commitAgroLaunches } from "@/lib/agro-ai/commit";
+import { normalizeAgroLaunch } from "@/lib/agro-ai/normalize";
+import type { AgroLaunchDraft } from "@/lib/agro-ai/types";
+import type { ValidateContext } from "@/lib/agro-ai/validate";
+import { AgroLaunchCard } from "@/modules/agro-ai/agro-launch-card";
 import { useExpenseStore } from "@/store/expense-store";
 import { useSalesStore } from "@/store/sales-store";
 import { useSectorStore } from "@/store/sector-store";
-import { Check, Mic, Pencil, Send, Sprout, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-
-type LaunchType = "sale" | "expense" | "stock";
-
-type LaunchDraft = {
-  localId: string;
-  type: LaunchType;
-  sectorId: string;
-  sectorName: string;
-  date: string;
-  quantity: number | null;
-  unitPrice: number | null;
-  buyer: string;
-  amount: number | null;
-  category: ExpenseCategory | null;
-  description: string;
-  stockType: "entry" | "exit" | null;
-  note: string;
-};
+import { Check, Mic, Send, Sprout, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type ChatLine =
   | { id: string; role: "user"; text: string }
   | { id: string; role: "bot"; text: string }
-  | { id: string; role: "card"; draft: LaunchDraft };
+  | { id: string; role: "card"; draft: AgroLaunchDraft };
 
 function uid() {
-  return crypto.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatDateBR(iso: string) {
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
+  return (
+    crypto.randomUUID?.() ??
+    `id_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  );
 }
 
 function formatClock(totalSec: number) {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-function cardPrompt(d: LaunchDraft) {
-  if (d.type === "sale") {
-    const qty = d.quantity ?? "?";
-    const price = d.unitPrice != null ? `R$ ${d.unitPrice}` : "valor ?";
-    const buyer = d.buyer.trim() || "comprador não dito";
-    return `Você pediu para criar venda no setor ${d.sectorName || "?"} de ${qty} unidade(s) no valor ${price} para ${buyer} no dia ${formatDateBR(d.date)}?`;
-  }
-  if (d.type === "expense") {
-    const amount = d.amount != null ? `R$ ${d.amount}` : "valor ?";
-    return `Despesa do setor ${d.sectorName || "?"} de ${amount} com a observação ${d.description || d.note || "sem observação"} na data ${formatDateBR(d.date)}`;
-  }
-  const kind = d.stockType === "exit" ? "saída" : "entrada";
-  return `Estoque (${kind}) no setor ${d.sectorName || "?"} de ${d.quantity ?? "?"} unidade(s)${d.note ? ` com a observação ${d.note}` : ""} na data ${formatDateBR(d.date)}`;
-}
-
-function normalizeDraft(
-  raw: Record<string, unknown>,
-  sectors: { id: string; name: string }[],
-): LaunchDraft {
-  const typeRaw = String(raw.type ?? "sale");
-  const type: LaunchType =
-    typeRaw === "expense" || typeRaw === "stock" ? typeRaw : "sale";
-  const sectorName = String(raw.sectorName ?? "");
-  const givenId = String(raw.sectorId ?? "");
-  const byId = sectors.find((s) => s.id === givenId);
-  const byName = sectors.find(
-    (s) => s.name.toLowerCase() === sectorName.trim().toLowerCase(),
-  );
-  const sector = byId ?? byName;
-  const cat = String(raw.category ?? "");
-  const category = (EXPENSE_CATEGORIES as readonly string[]).includes(cat)
-    ? (cat as ExpenseCategory)
-    : "outros";
-  const stockType =
-    raw.stockType === "exit" || raw.stockType === "entry"
-      ? raw.stockType
-      : type === "stock"
-        ? "entry"
-        : null;
-
-  const num = (v: unknown) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  };
-
-  return {
-    localId: uid(),
-    type,
-    sectorId: sector?.id ?? "",
-    sectorName: sector?.name ?? sectorName,
-    date: String(raw.date ?? todayISO()).slice(0, 10) || todayISO(),
-    quantity: num(raw.quantity),
-    unitPrice: num(raw.unitPrice),
-    buyer: String(raw.buyer ?? ""),
-    amount: num(raw.amount),
-    category: type === "expense" ? category : null,
-    description: String(raw.description ?? ""),
-    stockType,
-    note: String(raw.note ?? ""),
-  };
 }
 
 function WaveBars({ levels }: { levels: number[] }) {
@@ -127,10 +43,26 @@ function WaveBars({ levels }: { levels: number[] }) {
   );
 }
 
+function summarizeCommit(ok: number, fail: number) {
+  if (fail === 0 && ok > 0) {
+    return ok === 1
+      ? "1 lançamento registrado com sucesso."
+      : `${ok} lançamentos registrados com sucesso.`;
+  }
+  if (ok === 0 && fail > 0) {
+    return fail === 1
+      ? "1 lançamento precisa de correção."
+      : `${fail} lançamentos precisam de correção.`;
+  }
+  return `${ok} lançamento${ok === 1 ? "" : "s"} registrado${ok === 1 ? "" : "s"}. ${fail} precisa${fail === 1 ? "" : "m"} de correção.`;
+}
+
 export function AgroAiChat() {
   const sectors = useSectorStore((s) => s.sectors);
   const addSale = useSalesStore((s) => s.addSale);
   const addStockEntry = useSalesStore((s) => s.addStockEntry);
+  const stockTotalSacas = useSalesStore((s) => s.stockTotalSacas);
+  const stockMovements = useSalesStore((s) => s.stockMovements);
   const addExpense = useExpenseStore((s) => s.addExpense);
 
   const [input, setInput] = useState("");
@@ -138,14 +70,17 @@ export function AgroAiChat() {
     {
       id: "hello",
       role: "bot",
-      text: "Diz o que vendeste, o que gastaste ou o que queres lançar no estoque. Podes escrever ou gravar áudio. Confirmo um lançamento de cada vez.",
+      text: "Diz o que vendeste, o que gastaste ou o que queres lançar no estoque — podes misturar vários na mesma mensagem. Escreve ou grava áudio. Confira os cards antes de salvar.",
     },
   ]);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
-  const [levels, setLevels] = useState<number[]>(() => Array.from({ length: 28 }, () => 6));
+  const [levels, setLevels] = useState<number[]>(() =>
+    Array.from({ length: 28 }, () => 6),
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [committing, setCommitting] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -155,6 +90,29 @@ export function AgroAiChat() {
   const discardRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const sectorIds = useMemo(
+    () => new Set(sectors.map((s) => s.id)),
+    [sectors],
+  );
+
+  const validateCtx: ValidateContext = useMemo(
+    () => ({
+      sectorIds,
+      stockTotalSacas,
+      stockMovements,
+    }),
+    [sectorIds, stockTotalSacas, stockMovements],
+  );
+
+  const pendingDrafts = useMemo(
+    () =>
+      lines
+        .filter((l): l is Extract<ChatLine, { role: "card" }> => l.role === "card")
+        .map((l) => l.draft)
+        .filter((d) => d.status === "pending" || d.status === "error"),
+    [lines],
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -177,7 +135,8 @@ export function AgroAiChat() {
   }, []);
 
   const push = (line: ChatLine) => setLines((prev) => [...prev, line]);
-  const updateDraft = (localId: string, patch: Partial<LaunchDraft>) => {
+
+  const updateDraft = (localId: string, patch: Partial<AgroLaunchDraft>) => {
     setLines((prev) =>
       prev.map((l) =>
         l.role === "card" && l.draft.localId === localId
@@ -187,87 +146,120 @@ export function AgroAiChat() {
     );
   };
 
-  const commitDraft = (d: LaunchDraft) => {
-    if (!d.sectorId) {
+  const applyCommitResults = (
+    targets: AgroLaunchDraft[],
+  ): { ok: number; fail: number } => {
+    const results = commitAgroLaunches(targets, {
+      addSale,
+      addExpense,
+      addStockEntry,
+      getContext: () => ({
+        sectorIds,
+        stockTotalSacas: useSalesStore.getState().stockTotalSacas,
+        stockMovements: useSalesStore.getState().stockMovements,
+      }),
+    });
+
+    const byId = new Map(results.map((r) => [r.localId, r]));
+    const ok = results.filter((r) => r.ok).length;
+    const fail = results.filter((r) => !r.ok).length;
+
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l.role !== "card") return l;
+        const r = byId.get(l.draft.localId);
+        if (!r) return l;
+        if (r.ok) {
+          return {
+            ...l,
+            draft: {
+              ...l.draft,
+              status: "success",
+              error: undefined,
+            },
+          };
+        }
+        return {
+          ...l,
+          draft: {
+            ...l.draft,
+            status: "error",
+            error: r.error,
+          },
+        };
+      }),
+    );
+
+    return { ok, fail };
+  };
+
+  const confirmOne = (d: AgroLaunchDraft) => {
+    if (committing) return;
+    setCommitting(true);
+    try {
+      const { ok, fail } = applyCommitResults([d]);
       push({
         id: uid(),
         role: "bot",
-        text: "Escolhe um setor no Editar antes de confirmar.",
+        text: summarizeCommit(ok, fail),
       });
-      return;
+      setEditingId(null);
+    } finally {
+      setCommitting(false);
     }
-    if (d.type === "sale") {
-      if (!d.quantity || !d.unitPrice) {
-        push({
-          id: uid(),
-          role: "bot",
-          text: "Venda precisa de quantidade e preço. Usa Editar.",
-        });
-        return;
-      }
-      addSale({
-        sectorId: d.sectorId,
-        date: d.date,
-        quantity: d.quantity,
-        unitPrice: d.unitPrice,
-        buyer: d.buyer.trim() || "Não informado",
+  };
+
+  const confirmAllPending = () => {
+    if (committing || pendingDrafts.length === 0) return;
+    setCommitting(true);
+    try {
+      const { ok, fail } = applyCommitResults(pendingDrafts);
+      push({
+        id: uid(),
+        role: "bot",
+        text: summarizeCommit(ok, fail),
       });
-    } else if (d.type === "expense") {
-      if (!d.amount) {
-        push({
-          id: uid(),
-          role: "bot",
-          text: "Despesa precisa do valor. Usa Editar.",
-        });
-        return;
-      }
-      addExpense({
-        sectorId: d.sectorId,
-        date: d.date,
-        amount: d.amount,
-        description: d.description.trim() || d.note.trim() || "Despesa",
-        category: d.category ?? "outros",
-      });
-    } else {
-      if (!d.quantity) {
-        push({
-          id: uid(),
-          role: "bot",
-          text: "Estoque precisa de quantidade. Usa Editar.",
-        });
-        return;
-      }
-      addStockEntry({
-        sectorId: d.sectorId,
-        date: d.date,
-        quantity: d.quantity,
-        type: d.stockType === "exit" ? "exit" : "entry",
-        note: d.note.trim() || undefined,
-      });
+      setEditingId(null);
+    } finally {
+      setCommitting(false);
     }
+  };
+
+  const discardOne = (d: AgroLaunchDraft) => {
+    updateDraft(d.localId, { status: "discarded", error: undefined });
+    setEditingId(null);
+  };
+
+  const discardAllPending = () => {
+    const ids = new Set(pendingDrafts.map((d) => d.localId));
     setLines((prev) =>
       prev.map((l) =>
-        l.role === "card" && l.draft.localId === d.localId
+        l.role === "card" && ids.has(l.draft.localId)
           ? {
-              id: l.id,
-              role: "bot" as const,
-              text: `Lançado. ${cardPrompt(d)}`,
+              ...l,
+              draft: { ...l.draft, status: "discarded", error: undefined },
             }
           : l,
       ),
     );
     setEditingId(null);
+    push({
+      id: uid(),
+      role: "bot",
+      text:
+        pendingDrafts.length === 1
+          ? "1 lançamento descartado."
+          : `${pendingDrafts.length} lançamentos descartados.`,
+    });
   };
 
-  const dismissDraft = (d: LaunchDraft) => {
-    setLines((prev) =>
-      prev.map((l) =>
-        l.role === "card" && l.draft.localId === d.localId
-          ? { id: l.id, role: "bot" as const, text: "Lançamento cancelado." }
-          : l,
-      ),
-    );
+  const startFresh = () => {
     setEditingId(null);
+    push({
+      id: uid(),
+      role: "bot",
+      text: "Pronto para um novo lançamento. Diz o que aconteceu na fazenda.",
+    });
   };
 
   const parseText = async (text: string) => {
@@ -295,7 +287,7 @@ export function AgroAiChat() {
         return;
       }
       const drafts = (data.launches ?? []).map((l) =>
-        normalizeDraft(l, sectors),
+        normalizeAgroLaunch(l, sectors),
       );
       if (!drafts.length) {
         push({
@@ -305,8 +297,18 @@ export function AgroAiChat() {
         });
         return;
       }
+
+      const n = drafts.length;
       setLines((prev) => [
         ...prev,
+        {
+          id: uid(),
+          role: "bot",
+          text:
+            n === 1
+              ? "Encontramos 1 lançamento. Confira antes de salvar."
+              : `Encontramos ${n} lançamentos. Confira antes de salvar.`,
+        },
         ...drafts.map(
           (draft): ChatLine => ({ id: uid(), role: "card", draft }),
         ),
@@ -356,7 +358,9 @@ export function AgroAiChat() {
         const dropped = discardRef.current;
         stopWave();
         if (dropped) return;
-        const blob = new Blob(chunks.current, { type: rec.mimeType || "audio/webm" });
+        const blob = new Blob(chunks.current, {
+          type: rec.mimeType || "audio/webm",
+        });
         setBusy(true);
         try {
           const fd = new FormData();
@@ -435,8 +439,7 @@ export function AgroAiChat() {
     recorder.current = null;
   };
 
-  const fieldClass =
-    "mt-1 w-full rounded-lg border border-black/5 bg-white px-2 py-1.5 text-sm dark:border-white/10 dark:bg-slate-800";
+  const hasAnyCard = lines.some((l) => l.role === "card");
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-10.5rem)] max-w-2xl flex-col overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_12px_40px_-24px_rgba(15,23,42,0.45)] dark:border-white/10 dark:bg-slate-900 md:h-[calc(100dvh-8.5rem)]">
@@ -449,12 +452,18 @@ export function AgroAiChat() {
             AGRO AI
           </p>
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
-            {busy ? "a escrever..." : recording ? "a ouvir..." : "online"}
+            {busy
+              ? "a escrever..."
+              : recording
+                ? "a ouvir..."
+                : committing
+                  ? "a gravar..."
+                  : "online"}
           </p>
         </div>
       </header>
 
-      <div className="agro-chat-paper flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
+      <div className="agro-chat-paper flex-1 space-y-2 overflow-y-auto px-3 py-4">
         {lines.map((line) => {
           if (line.role === "user") {
             return (
@@ -475,208 +484,36 @@ export function AgroAiChat() {
             );
           }
           const d = line.draft;
-          const editing = editingId === d.localId;
           return (
             <div key={line.id} className="flex justify-start">
-              <div className="max-w-[90%] rounded-2xl rounded-bl-sm bg-white p-3 shadow-sm dark:bg-slate-800">
-                <p className="text-[15px] leading-snug text-gray-800 dark:text-slate-100">
-                  {cardPrompt(d)}
-                </p>
-                {editing && (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <label className="text-xs text-gray-500">
-                      Setor
-                      <select
-                        className={fieldClass}
-                        value={d.sectorId}
-                        onChange={(e) => {
-                          const s = sectors.find((x) => x.id === e.target.value);
-                          updateDraft(d.localId, {
-                            sectorId: e.target.value,
-                            sectorName: s?.name ?? d.sectorName,
-                          });
-                        }}
-                      >
-                        <option value="">Escolher</option>
-                        {sectors.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-xs text-gray-500">
-                      Data
-                      <input
-                        type="date"
-                        className={fieldClass}
-                        value={d.date}
-                        onChange={(e) =>
-                          updateDraft(d.localId, { date: e.target.value })
-                        }
-                      />
-                    </label>
-                    {d.type === "sale" && (
-                      <>
-                        <label className="text-xs text-gray-500">
-                          Quantidade
-                          <input
-                            type="number"
-                            className={fieldClass}
-                            value={d.quantity ?? ""}
-                            onChange={(e) =>
-                              updateDraft(d.localId, {
-                                quantity: Number(e.target.value) || null,
-                              })
-                            }
-                          />
-                        </label>
-                        <label className="text-xs text-gray-500">
-                          Preço unitário
-                          <input
-                            type="number"
-                            className={fieldClass}
-                            value={d.unitPrice ?? ""}
-                            onChange={(e) =>
-                              updateDraft(d.localId, {
-                                unitPrice: Number(e.target.value) || null,
-                              })
-                            }
-                          />
-                        </label>
-                        <label className="text-xs text-gray-500 sm:col-span-2">
-                          Comprador
-                          <input
-                            className={fieldClass}
-                            value={d.buyer}
-                            onChange={(e) =>
-                              updateDraft(d.localId, { buyer: e.target.value })
-                            }
-                          />
-                        </label>
-                      </>
-                    )}
-                    {d.type === "expense" && (
-                      <>
-                        <label className="text-xs text-gray-500">
-                          Valor
-                          <input
-                            type="number"
-                            className={fieldClass}
-                            value={d.amount ?? ""}
-                            onChange={(e) =>
-                              updateDraft(d.localId, {
-                                amount: Number(e.target.value) || null,
-                              })
-                            }
-                          />
-                        </label>
-                        <label className="text-xs text-gray-500">
-                          Categoria
-                          <select
-                            className={fieldClass}
-                            value={d.category ?? "outros"}
-                            onChange={(e) =>
-                              updateDraft(d.localId, {
-                                category: e.target.value as ExpenseCategory,
-                              })
-                            }
-                          >
-                            {EXPENSE_CATEGORIES.map((c) => (
-                              <option key={c} value={c}>
-                                {c}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="text-xs text-gray-500 sm:col-span-2">
-                          Observação
-                          <input
-                            className={fieldClass}
-                            value={d.description}
-                            onChange={(e) =>
-                              updateDraft(d.localId, {
-                                description: e.target.value,
-                              })
-                            }
-                          />
-                        </label>
-                      </>
-                    )}
-                    {d.type === "stock" && (
-                      <>
-                        <label className="text-xs text-gray-500">
-                          Quantidade
-                          <input
-                            type="number"
-                            className={fieldClass}
-                            value={d.quantity ?? ""}
-                            onChange={(e) =>
-                              updateDraft(d.localId, {
-                                quantity: Number(e.target.value) || null,
-                              })
-                            }
-                          />
-                        </label>
-                        <label className="text-xs text-gray-500">
-                          Tipo
-                          <select
-                            className={fieldClass}
-                            value={d.stockType ?? "entry"}
-                            onChange={(e) =>
-                              updateDraft(d.localId, {
-                                stockType: e.target.value as "entry" | "exit",
-                              })
-                            }
-                          >
-                            <option value="entry">Entrada</option>
-                            <option value="exit">Saída</option>
-                          </select>
-                        </label>
-                        <label className="text-xs text-gray-500 sm:col-span-2">
-                          Observação
-                          <input
-                            className={fieldClass}
-                            value={d.note}
-                            onChange={(e) =>
-                              updateDraft(d.localId, { note: e.target.value })
-                            }
-                          />
-                        </label>
-                      </>
-                    )}
-                  </div>
-                )}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => commitDraft(d)}
-                    className="inline-flex items-center gap-1 rounded-full bg-[#166534] px-3 py-1.5 text-xs font-semibold text-white"
-                  >
-                    <Check className="h-3.5 w-3.5" strokeWidth={2.2} />
-                    Confirmar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingId(editing ? null : d.localId)}
-                    className="inline-flex items-center gap-1 rounded-full bg-black/5 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:bg-white/10 dark:text-slate-100"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => dismissDraft(d)}
-                    className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-500"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Cancelar
-                  </button>
-                </div>
-              </div>
+              <AgroLaunchCard
+                draft={d}
+                sectors={sectors}
+                editing={editingId === d.localId}
+                validateCtx={validateCtx}
+                onToggleEdit={() =>
+                  setEditingId(editingId === d.localId ? null : d.localId)
+                }
+                onChange={(patch) => updateDraft(d.localId, patch)}
+                onConfirm={() => confirmOne(d)}
+                onDiscard={() => discardOne(d)}
+              />
             </div>
           );
         })}
+
+        {hasAnyCard && pendingDrafts.length === 0 && (
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={startFresh}
+              className="min-h-11 rounded-full border border-[#166534]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#166534] shadow-sm dark:bg-slate-800"
+            >
+              Novo lançamento
+            </button>
+          </div>
+        )}
+
         {busy && (
           <div className="flex justify-start">
             <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white px-3 py-2.5 shadow-sm dark:bg-slate-800">
@@ -688,6 +525,28 @@ export function AgroAiChat() {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {pendingDrafts.length > 0 && (
+        <div className="flex shrink-0 flex-wrap gap-2 border-t border-black/5 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-slate-900">
+          <button
+            type="button"
+            disabled={committing}
+            onClick={confirmAllPending}
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#166534] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            <Check className="h-4 w-4" />
+            Salvar todos ({pendingDrafts.length})
+          </button>
+          <button
+            type="button"
+            disabled={committing}
+            onClick={discardAllPending}
+            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-black/5 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:bg-white/10 dark:text-slate-100"
+          >
+            Descartar todos
+          </button>
+        </div>
+      )}
 
       <form
         onSubmit={(e) => {
@@ -747,7 +606,7 @@ export function AgroAiChat() {
                 }
               }}
               rows={1}
-              placeholder="Mensagem"
+              placeholder="Ex.: vendi 10 sacas de café a 800 pro João..."
               className="max-h-[168px] min-h-11 flex-1 resize-none overflow-y-auto rounded-[22px] border-0 bg-white px-4 py-2.5 text-[15px] leading-6 text-gray-900 outline-none placeholder:text-gray-400 dark:bg-slate-900 dark:text-slate-100"
             />
             <button

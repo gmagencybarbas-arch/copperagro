@@ -14,6 +14,7 @@ import { SalesFilterBar } from "@/modules/dashboard/sales-filter-bar";
 import { SectorTabs } from "@/components/sector/sector-tabs";
 import { SalesTable } from "@/modules/sales/sales-table";
 import { formatBRL, formatBRLFine } from "@/lib/format";
+import { CardHelp, CardHelpLabel } from "@/components/ui/card-help";
 import { useExpenseStore } from "@/store/expense-store";
 import { trailingWeeklyAvgBags } from "@/store/sales-metrics";
 import { pluralizeUnit, useSectorStore } from "@/store/sector-store";
@@ -137,7 +138,11 @@ export function SectorVendasView() {
         >
           <Card className="col-span-2 rounded-[22px] border border-gray-100/90 bg-white p-6 shadow-sm dark:border-slate-800 lg:col-span-1">
           <div className="flex items-start justify-between gap-2">
-            <Title className="text-gray-600">Faturamento total</Title>
+            <Title className="text-gray-600">
+              <CardHelpLabel help="Soma do valor total (R$) das vendas deste setor no período filtrado.">
+                Faturamento total
+              </CardHelpLabel>
+            </Title>
             <DollarSign
               className="h-5 w-5 shrink-0 text-gray-400"
               strokeWidth={1.75}
@@ -156,7 +161,11 @@ export function SectorVendasView() {
 
           <Card className="col-span-2 rounded-[22px] border border-gray-100/90 bg-white p-6 shadow-sm dark:border-slate-800 lg:col-span-1">
           <div className="flex items-start justify-between gap-2">
-            <Title className="text-gray-600">Unidades ({pluralizeUnit(unit, 2)})</Title>
+            <Title className="text-gray-600">
+              <CardHelpLabel help={`Quantidade total de ${pluralizeUnit(unit, 2)} vendidas no período filtrado.`}>
+                Unidades ({pluralizeUnit(unit, 2)})
+              </CardHelpLabel>
+            </Title>
             <Package
               className="h-5 w-5 shrink-0 text-gray-400"
               strokeWidth={1.75}
@@ -177,7 +186,11 @@ export function SectorVendasView() {
 
           <Card className="col-span-1 rounded-[22px] border border-gray-100/90 bg-white p-6 shadow-sm dark:border-slate-800 lg:col-span-1">
           <div className="flex items-start justify-between gap-2">
-            <Title className="text-gray-600">Preço médio</Title>
+            <Title className="text-gray-600">
+              <CardHelpLabel help={`Média ponderada: faturamento ÷ unidades (R$/${unit}).`}>
+                Preço médio
+              </CardHelpLabel>
+            </Title>
             <TrendingUp
               className="h-5 w-5 shrink-0 text-gray-400"
               strokeWidth={1.75}
@@ -197,7 +210,11 @@ export function SectorVendasView() {
 
           <Card className="col-span-1 rounded-[22px] border border-emerald-100/80 bg-gradient-to-br from-white to-emerald-50/40 p-6 shadow-sm lg:col-span-1">
           <div className="flex items-start justify-between gap-2">
-            <Title className="text-gray-600">Estoque restante</Title>
+            <Title className="text-gray-600">
+              <CardHelpLabel help="O que ainda resta neste setor: entradas menos saídas (vendas e baixas).">
+                Estoque restante
+              </CardHelpLabel>
+            </Title>
             <Layers
               className="h-5 w-5 shrink-0 text-emerald-600/70"
               strokeWidth={1.75}
@@ -222,7 +239,9 @@ export function SectorVendasView() {
           <Card className="col-span-2 rounded-[22px] border border-gray-100/90 bg-white p-6 shadow-sm dark:border-slate-800 md:col-span-2">
           <div className="flex items-start justify-between gap-2">
             <Title className="text-gray-600">
-              Projeção de término do estoque
+              <CardHelpLabel help="Estoque restante ÷ ritmo médio semanal de vendas. Estimativa de quantas semanas faltam.">
+                Projeção de término do estoque
+              </CardHelpLabel>
             </Title>
             <Timer className="h-5 w-5 shrink-0 text-gray-400" strokeWidth={1.75} />
           </div>
@@ -254,8 +273,11 @@ export function SectorVendasView() {
           <Card className="col-span-2 overflow-hidden rounded-[22px] border border-gray-200/90 bg-gradient-to-br from-white via-slate-50/50 to-white p-0 shadow-md ring-1 ring-gray-100/80 dark:border-slate-700 dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-950 dark:ring-slate-800 md:col-span-2">
             <div className="grid divide-y divide-gray-100 dark:divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
               <div className="p-6">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-700/90 dark:text-rose-300/90">
+                <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-700/90 dark:text-rose-300/90">
                   Despesas do setor
+                  <CardHelp>
+                    Custos ligados a este setor no período (e despesas gerais repartidas, quando houver).
+                  </CardHelp>
                 </p>
                 <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-rose-800 dark:text-rose-200/95">
                   <AnimatedNumber value={sectorExpenses} format={(n) => formatBRL(Math.round(n))} />
@@ -265,8 +287,11 @@ export function SectorVendasView() {
                 </p>
               </div>
               <div className="bg-gradient-to-br from-emerald-50/90 to-white p-6 dark:from-emerald-950/40 dark:to-slate-900/60">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
+                <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
                   Lucro do setor
+                  <CardHelp>
+                    Faturamento do setor menos as despesas atribuídas. Negativo = prejuízo no recorte.
+                  </CardHelp>
                 </p>
                 <p
                   className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${

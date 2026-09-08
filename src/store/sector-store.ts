@@ -7,6 +7,7 @@ import { PLANS } from "@/config/plans";
 import { usePlanStore } from "@/store/plan-store";
 import { create } from "zustand";
 
+/** Templates de seed — o id real no banco é sempre UUID. */
 export const DEFAULT_SECTORS: Sector[] = [
   { id: "cafe", name: "Café", unit: "saca", color: "green", icon: "coffee" },
   { id: "leite", name: "Leite", unit: "litro", color: "blue", icon: "milk" },
@@ -14,7 +15,16 @@ export const DEFAULT_SECTORS: Sector[] = [
   { id: "hortifruti", name: "Hortifruti", unit: "caixa", color: "rose", icon: "sprout" },
 ];
 
-export const DEFAULT_SECTOR_ID = DEFAULT_SECTORS[0].id;
+/** Fallback legado; preferir `sectors[0]?.id` em runtime. */
+export const DEFAULT_SECTOR_ID = "";
+
+export function pickDefaultSectorId(
+  sectors: Sector[],
+  preferred?: string | null,
+): string {
+  if (preferred && sectors.some((s) => s.id === preferred)) return preferred;
+  return sectors[0]?.id ?? "";
+}
 
 export type CreateSectorInput = {
   name: string;
@@ -32,7 +42,7 @@ type SectorState = {
 };
 
 export const useSectorStore = create<SectorState>()((set) => ({
-  sectors: DEFAULT_SECTORS,
+  sectors: [],
   selectedSectorId: null,
   setSelectedSector: (id) => set({ selectedSectorId: id }),
   updateSector: (id, input) => {
@@ -73,17 +83,9 @@ export const useSectorStore = create<SectorState>()((set) => ({
       const name = input.name.trim();
       if (!name) return state;
 
-      const id = name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
-
-      const uniqueId = id || `setor-${Date.now()}`;
-      if (state.sectors.some((existing) => existing.id === uniqueId)) {
-        return state;
-      }
+      const uniqueId =
+        crypto.randomUUID?.() ??
+        `setor_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
       const color = input.color ?? nextAvailableSectorColor(state.sectors);
       const iconRaw = input.icon?.trim() ?? "";

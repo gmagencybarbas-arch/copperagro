@@ -31,6 +31,13 @@ export function CoopFinanceGate({
   }, [sessionReady, isAuthenticated, router]);
 
   useEffect(() => {
+    if (!sessionReady || !isAuthenticated) return;
+    if (company && !company.onboardingCompleted) {
+      router.replace("/onboarding");
+    }
+  }, [sessionReady, isAuthenticated, company, router]);
+
+  useEffect(() => {
     if (company) setPlanLocal(company.plan);
   }, [company, setPlanLocal]);
 
