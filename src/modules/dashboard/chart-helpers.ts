@@ -113,7 +113,7 @@ export function buildWeeklyWeightedAvgPriceInRange(
 ): PricePoint[] {
   const weekMondays = weekMondaysTouchingRange(start, end);
   const list = sales.filter((s) => saleInRange(s, start, end));
-  let carry = 800;
+  let carry = 0;
   return weekMondays.map((wm) => {
     const weekSales = list.filter((s) => mondayOfIsoWeek(s.date) === wm);
     const rev = weekSales.reduce((a, s) => a + s.totalPrice, 0);
@@ -135,7 +135,7 @@ export function buildMonthlyWeightedAvgPriceInRange(
 ): PricePoint[] {
   const monthKeys = monthKeysTouchingRange(start, end);
   const list = sales.filter((s) => saleInRange(s, start, end));
-  let carry = 800;
+  let carry = 0;
   return monthKeys.map((mk) => {
     const [y, mo] = mk.split("-").map(Number);
     const monthSales = list.filter((s) => {
@@ -226,7 +226,7 @@ export function buildDailyPriceSeriesCarried(
   days: string[],
 ): PricePoint[] {
   const agg = aggregateSalesByDayMap(sales);
-  let carry = 800;
+  let carry = 0;
   return days.map((iso) => {
     const row = agg.get(iso);
     if (row && row.totalQty > 0) {
@@ -271,7 +271,7 @@ export function buildYoYDailyComparisonSeries(
   currentPeriodDays: string[],
 ): PricePoint[] {
   const agg = aggregateSalesByDayMap(sales);
-  let carry = 800;
+  let carry = 0;
   return currentPeriodDays.map((iso) => {
     const [y, m, d] = iso.split("-").map(Number);
     if (!y || !m || !d) return { date: iso, unitPrice: carry };

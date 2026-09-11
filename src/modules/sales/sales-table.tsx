@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   PackageSearch,
+  Pencil,
   Plus,
   Trash2,
   X,
@@ -44,7 +45,7 @@ type Dir = "asc" | "desc";
 
 const columns: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "date", label: "Data" },
-  { key: "quantity", label: "Quantidade", align: "right" },
+  { key: "quantity", label: "Qtd.", align: "right" },
   { key: "unitPrice", label: "Valor unitário", align: "right" },
   { key: "totalPrice", label: "Total", align: "right" },
   { key: "buyer", label: "Comprador" },
@@ -312,6 +313,8 @@ function SalesTableInner({ embed = false }: { embed?: boolean }) {
             {filtered.length === sales.length
               ? `${sales.length} ${sales.length === 1 ? "linha" : "linhas"}`
               : `${filtered.length} de ${sales.length} linhas`}
+            {" · "}
+            Clique na linha para editar ou excluir.
           </p>
           {/* Controles de ordenação grandes no mobile — o cabeçalho da tabela fica pequeno demais */}
           <div className="mt-3 md:hidden">
@@ -429,7 +432,10 @@ function SalesTableInner({ embed = false }: { embed?: boolean }) {
                   }`}
                 >
                   <td className="whitespace-nowrap px-6 py-3.5 text-[15px] font-medium text-gray-800 dark:text-slate-200 sm:text-base">
-                    {formatDateBR(row.date)}
+                    <span className="inline-flex items-center gap-2">
+                      <Pencil className="h-3.5 w-3.5 text-emerald-600/80" />
+                      {formatDateBR(row.date)}
+                    </span>
                   </td>
                   <td className="whitespace-nowrap px-6 py-3.5 text-right text-[15px] font-semibold tabular-nums text-gray-900 dark:text-slate-100 sm:text-base">
                     {new Intl.NumberFormat("pt-BR").format(row.quantity)}

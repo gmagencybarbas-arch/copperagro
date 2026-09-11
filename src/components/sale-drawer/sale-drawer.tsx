@@ -43,7 +43,7 @@ export function SaleDrawer() {
 
   const [date, setDate] = useState(todayISO);
   const [quantity, setQuantity] = useState(1);
-  const [unitPrice, setUnitPrice] = useState(800);
+  const [unitPrice, setUnitPrice] = useState(0);
   const [buyer, setBuyer] = useState("");
   const [attempted, setAttempted] = useState(false);
 
@@ -54,7 +54,7 @@ export function SaleDrawer() {
     setSaleSectorId(pickDefaultSectorId(list, selected));
     setDate(todayISO());
     setQuantity(1);
-    setUnitPrice(800);
+    setUnitPrice(0);
     setBuyer("");
     setAttempted(false);
   }, [open]);

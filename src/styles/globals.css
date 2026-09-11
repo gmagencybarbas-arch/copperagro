@@ -347,6 +347,21 @@ html.dark .frame-chip[data-active="true"] {
   animation: agro-typing 1.15s ease-in-out infinite;
 }
 
+@keyframes agro-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.agro-card-enter {
+  animation: agro-card-in 0.28s ease-out;
+}
+
 .agro-chat-paper {
   background-color: #efeae2;
   background-image: radial-gradient(rgba(22, 101, 52, 0.05) 0.8px, transparent 0.8px);
@@ -367,7 +382,8 @@ html.dark .agro-chat-paper {
   .plan-chosen-pop,
   .agro-bar-pulse,
   .agro-ai-border,
-  .agro-typing-dot {
+  .agro-typing-dot,
+  .agro-card-enter {
     animation: none !important;
   }
 
@@ -392,6 +408,29 @@ html.dark .agro-chat-paper {
  * pan livre no eixo X, momentum iOS, sem “brigar” com o scroll da página.
  * Sem scroll-behavior:smooth aqui — no touch isso trava o arrastar.
  */
+html:not(.dark) {
+  scrollbar-color: #16a34a rgba(22, 101, 52, 0.12);
+  scrollbar-width: thin;
+}
+
+html:not(.dark) ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: rgba(22, 163, 74, 0.12);
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #16a34a;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #15803d;
+}
+
 .table-scroll {
   max-width: 100%;
   overflow-x: auto;
@@ -400,15 +439,32 @@ html.dark .agro-chat-paper {
   overscroll-behavior-x: contain;
   touch-action: pan-x pan-y;
   scrollbar-width: thin;
+  scrollbar-color: #16a34a rgba(22, 101, 52, 0.12);
 }
 
 .table-scroll::-webkit-scrollbar {
-  height: 6px;
+  height: 8px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+  background: rgba(22, 163, 74, 0.12);
 }
 
 .table-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: color-mix(in oklab, #94a3b8 55%, transparent);
+  background: #16a34a;
+}
+
+html.dark .table-scroll {
+  scrollbar-color: color-mix(in oklab, #34d399 50%, transparent) transparent;
+}
+
+html.dark .table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html.dark .table-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, #34d399 45%, transparent);
 }
 
 .table-scroll > table,

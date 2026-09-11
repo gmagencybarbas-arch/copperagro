@@ -45,7 +45,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (!nextSession?.user) return;
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        if (event === "SIGNED_IN") {
           void applySession(nextSession.user.id, nextSession.user.email ?? "", true);
         }
       });

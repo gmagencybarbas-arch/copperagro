@@ -1,5 +1,9 @@
+import {
+  inferExpenseCategory,
+  parseExpenseCategory,
+} from "@/lib/agro-ai/infer-expense-category";
 import type { AgroLaunchDraft, AgroLaunchType } from "@/lib/agro-ai/types";
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/types/expense";
+import type { ExpenseCategory } from "@/types/expense";
 
 function uid() {
   return (
@@ -61,6 +65,7 @@ function num(v: unknown): number | null {
 export function normalizeAgroLaunch(
   raw: Record<string, unknown>,
   sectors: { id: string; name: string }[],
+  sourceText = "",
 ): AgroLaunchDraft {
   const typeRaw = String(raw.type ?? "sale");
   const type: AgroLaunchType =
@@ -70,10 +75,16 @@ export function normalizeAgroLaunch(
   const givenId = String(raw.sectorId ?? "");
   const sector = matchSector(sectors, givenId, sectorName);
 
-  const cat = String(raw.category ?? "");
-  const category = (EXPENSE_CATEGORIES as readonly string[]).includes(cat)
-    ? (cat as ExpenseCategory)
-    : null;
+  const description = String(raw.description ?? "");
+  const note = String(raw.note ?? "");
+  const parsedCat = parseExpenseCategory(raw.category);
+  const guessed = inferExpenseCategory(description, note, sectorName, sourceText);
+  let category: ExpenseCategory | null = parsedCat;
+  if (type === "expense") {
+    if (!category || category === "outros") {
+      category = guessed ?? category;
+    }
+  }
 
   const stockType =
     raw.stockType === "exit" || raw.stockType === "entry"
@@ -94,7 +105,7 @@ export function normalizeAgroLaunch(
     buyer: String(raw.buyer ?? ""),
     amount: num(raw.amount),
     category,
-    description: String(raw.description ?? ""),
+    description,
     stockType,
     note: String(raw.note ?? ""),
     status: "pending",

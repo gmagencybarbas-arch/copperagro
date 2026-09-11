@@ -7,11 +7,13 @@ import { Moon, Sun } from "lucide-react";
 export function ThemeToggle({
   compact = false,
   subtle = false,
+  hideLabel = false,
 }: {
   /** Ícones apenas (ex.: cabeçalho mobile). */
   compact?: boolean;
   /** Variante discreta para rodapé/sidebar. */
   subtle?: boolean;
+  hideLabel?: boolean;
 }) {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -55,9 +57,11 @@ export function ThemeToggle({
 
   return (
     <div className={subtle ? "space-y-1.5 opacity-95" : "space-y-2"}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
-        Aparência
-      </p>
+      {!hideLabel && (
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+          Aparência
+        </p>
+      )}
       <div
         className={`flex rounded-xl border border-gray-200/90 bg-gray-50/90 p-0.5 shadow-sm dark:border-slate-600 dark:bg-slate-800/90 ${
           subtle ? "scale-[0.97]" : ""

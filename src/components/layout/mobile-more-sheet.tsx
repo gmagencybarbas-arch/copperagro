@@ -2,7 +2,20 @@
 
 import { beginRouteLoading } from "@/store/nav-loading-store";
 import { useAuthStore } from "@/store/auth-store";
-import { BookOpen, LineChart, Rocket, Settings, UserRound, X } from "lucide-react";
+import {
+  BookOpen,
+  ClipboardList,
+  FileBarChart,
+  LayoutGrid,
+  LineChart,
+  MessageCircle,
+  PackageOpen,
+  Rocket,
+  Settings,
+  UserRound,
+  Wallet,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -33,7 +46,7 @@ export function MobileMoreSheet({ open, onClose }: Props) {
         aria-label="Fechar menu"
       />
       <section
-        className="absolute inset-x-0 bottom-0 rounded-t-2xl border border-gray-200 bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_40px_-18px_rgba(15,23,42,0.35)] transition-transform duration-200"
+        className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-2xl border border-gray-200 bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_40px_-18px_rgba(15,23,42,0.35)] transition-transform duration-200"
         style={{ transform: `translateY(${Math.max(0, dragY)}px)` }}
         onTouchStart={(e) => {
           startY.current = e.touches[0]?.clientY ?? null;
@@ -65,6 +78,22 @@ export function MobileMoreSheet({ open, onClose }: Props) {
         <div className="space-y-4">
           <button
             type="button"
+            onClick={() => go("/agro-ai")}
+            className="flex w-full items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left shadow-sm"
+          >
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#166534] text-white">
+              <MessageCircle className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-[#14532d]">AGRO AI</span>
+              <span className="block text-xs text-emerald-800/80">
+                Lançar por texto ou áudio
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => go("/planos")}
             className="flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-[#166534] to-[#22a763] px-4 py-3 text-left text-white shadow-[0_12px_30px_-18px_rgba(22,101,52,0.85)]"
           >
@@ -77,13 +106,23 @@ export function MobileMoreSheet({ open, onClose }: Props) {
             <Rocket className="h-4 w-4 shrink-0" />
           </button>
 
-          <Section title="Conta">
-            <Item icon={<UserRound className="h-4 w-4" />} label="Conta" onClick={() => go("/conta")} />
-            <Item icon={<Settings className="h-4 w-4" />} label="Configurações" onClick={() => go("/configuracoes")} />
+          <Section title="Operação">
+            <Item icon={<LayoutGrid className="h-4 w-4" />} label="Painel" onClick={() => go("/dashboard")} />
+            <Item icon={<ClipboardList className="h-4 w-4" />} label="Vendas" onClick={() => go("/vendas")} />
+            <Item icon={<Wallet className="h-4 w-4" />} label="Despesas" onClick={() => go("/despesas")} />
+            <Item icon={<PackageOpen className="h-4 w-4" />} label="Estoque" onClick={() => go("/estoque")} />
           </Section>
 
           <Section title="Inteligência">
             <Item icon={<LineChart className="h-4 w-4" />} label="Análises" onClick={() => go("/analises")} />
+            <Item icon={<MessageCircle className="h-4 w-4" />} label="AGRO AI" onClick={() => go("/agro-ai")} />
+          </Section>
+
+          <Section title="Conta">
+            <Item icon={<Settings className="h-4 w-4" />} label="Configurações" onClick={() => go("/configuracoes")} />
+            <Item icon={<UserRound className="h-4 w-4" />} label="Conta" onClick={() => go("/conta")} />
+            <Item icon={<FileBarChart className="h-4 w-4" />} label="Relatórios" onClick={() => go("/relatorios")} />
+            <Item icon={<Rocket className="h-4 w-4" />} label="Planos" onClick={() => go("/planos")} />
           </Section>
 
           <Section title="Sistema">

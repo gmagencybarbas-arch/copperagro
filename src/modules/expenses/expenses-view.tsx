@@ -21,8 +21,9 @@ import { useDrawerStore } from "@/store/drawer-store";
 import { useSectorStore } from "@/store/sector-store";
 import { EXPENSE_CATEGORY_LABEL, type Expense } from "@/types/expense";
 import type { Sector, SectorColorToken } from "@/types/sector";
-import { BarChart3, ChevronDown, LayoutDashboard } from "lucide-react";
+import { BarChart3, ChevronDown, LayoutDashboard, Pencil } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ExpenseEditModal } from "./expense-edit-modal";
 import { ExpenseByCategoryChart } from "./expense-by-category-chart";
 import { ExpenseBySectorChart } from "./expense-by-sector-chart";
 import { ExpenseLineChart } from "./expense-line-chart";
@@ -104,6 +105,7 @@ export function ExpensesView() {
     filters.sectorId !== "all" && filters.sectorId !== "global";
 
   const [showDados, setShowDados] = useState(true);
+  const [editing, setEditing] = useState<Expense | null>(null);
 
   const costPerUnit = useMemo(() => {
     if (!isProductSector) return null;
@@ -309,6 +311,7 @@ export function ExpensesView() {
 
       <section className="space-y-3" aria-label="Histórico de lançamentos" id="historico-despesas">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-50">Histórico de lançamentos</h2>
+        <p className="text-xs text-gray-500">Clique na linha para editar ou excluir.</p>
         <Card className="overflow-hidden border border-gray-100/90 shadow-sm dark:border-slate-600/60">
         <p className="border-b border-gray-100/90 bg-gray-50/80 px-4 py-2 text-xs font-semibold text-gray-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
           Tabela
@@ -333,8 +336,25 @@ export function ExpensesView() {
                 </tr>
               ) : (
                 rows.map((r) => (
-                  <tr key={r.id} className="border-b border-gray-50/90 transition-colors hover:bg-gray-50/60 dark:border-slate-800 dark:hover:bg-slate-800/40">
-                    <td className="px-4 py-3 tabular-nums text-gray-700 dark:text-slate-300">{r.date}</td>
+                  <tr
+                    key={r.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setEditing(r)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setEditing(r);
+                      }
+                    }}
+                    className="cursor-pointer border-b border-gray-50/90 transition-colors hover:bg-emerald-50/50 dark:border-slate-800 dark:hover:bg-slate-800/40"
+                  >
+                    <td className="px-4 py-3 tabular-nums text-gray-700 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-2">
+                        <Pencil className="h-3.5 w-3.5 text-emerald-600/80" />
+                        {r.date}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-gray-800 dark:text-slate-200">
                       {EXPENSE_CATEGORY_LABEL[r.category ?? "outros"]}
                     </td>
@@ -351,6 +371,9 @@ export function ExpensesView() {
         </TableScroll>
       </Card>
       </section>
+      {editing ? (
+        <ExpenseEditModal expense={editing} onClose={() => setEditing(null)} />
+      ) : null}
     </div>
   );
 }

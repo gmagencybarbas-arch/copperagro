@@ -8,7 +8,8 @@ import { useDrawerStore } from "@/store/drawer-store";
 import { pluralizeUnit, useSectorStore } from "@/store/sector-store";
 import { useSalesStore } from "@/store/sales-store";
 import type { StockMovement } from "@/types/sale";
-import { Activity, ChevronDown, Filter, History, Plus } from "lucide-react";
+import { Activity, ChevronDown, Filter, History, Pencil, Plus } from "lucide-react";
+import { StockEditModal } from "./stock-edit-modal";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -106,6 +107,7 @@ export function StockView() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE);
+  const [editing, setEditing] = useState<StockMovement | null>(null);
 
   const sectorById = useMemo(() => new Map(sectors.map((s) => [s.id, s])), [sectors]);
 
@@ -312,7 +314,7 @@ export function StockView() {
                   <th className="px-4 py-3">Data</th>
                   <th className="px-4 py-3">Setor</th>
                   <th className="px-4 py-3">Tipo</th>
-                  <th className="px-4 py-3 text-right">Quantidade</th>
+                  <th className="px-4 py-3 text-right">Qtd.</th>
                   <th className="px-4 py-3">Unidade</th>
                   <th className="px-4 py-3">Observação</th>
                 </tr>
@@ -330,8 +332,25 @@ export function StockView() {
                     const movementSector = sectorById.get(m.sectorId);
                     const movementUnit = movementSector?.unit ?? "unidade";
                     return (
-                      <tr key={m.id} className="border-b border-gray-50 transition-colors hover:bg-gray-50/60 dark:border-slate-800/80 dark:hover:bg-slate-800/40">
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-800 dark:text-slate-100">{fmtDate.format(new Date(m.date))}</td>
+                      <tr
+                        key={m.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setEditing(m)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setEditing(m);
+                          }
+                        }}
+                        className="cursor-pointer border-b border-gray-50 transition-colors hover:bg-emerald-50/50 dark:border-slate-800/80 dark:hover:bg-slate-800/40"
+                      >
+                        <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-800 dark:text-slate-100">
+                          <span className="inline-flex items-center gap-2">
+                            <Pencil className="h-3.5 w-3.5 text-emerald-600/80" />
+                            {fmtDate.format(new Date(m.date))}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-gray-700 dark:text-slate-100">{movementSector?.name ?? "—"}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${entry ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200/90"}`}>
@@ -366,6 +385,9 @@ export function StockView() {
           )}
         </Card>
       </section>
+      {editing ? (
+        <StockEditModal movement={editing} onClose={() => setEditing(null)} />
+      ) : null}
     </div>
   );
 }

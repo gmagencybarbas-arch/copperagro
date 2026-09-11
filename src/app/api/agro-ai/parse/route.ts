@@ -99,8 +99,16 @@ sale:
 - quantidade, preço unitário e comprador quando informados; senão null / "".
 
 expense:
-- amount em reais, description, category (só as 5 categorias válidas).
-- category null se não der para classificar.
+- amount em reais, description curta do que foi, category (só as 5 categorias).
+- Sempre tente classificar. Só use "outros" se realmente não encaixar. Não deixe category null se houver description.
+- "despesa geral" / "despesas gerais" = sem setor (sectorId e sectorName vazios). NÃO significa categoria "outros".
+- Como presumir a categoria pelo que a pessoa fez ou comprou:
+  - manutenção: conserto, concerto, reparo, cerca, arame, portão, peça, máquina, trator, solda, reforma, pneu, motor quebrou
+  - mão de obra: pagou alguém, diária, peão, salário, arar, aração, capinar, colher, empreita, "paguei um cara pra"
+  - insumos: fertilizante, adubo, semente, veneno, defensivo, ração, calcário, ureia, vacina
+  - combustível: diesel, gasolina, etanol, abasteci, posto
+  - outros: só se não casar com nenhuma acima (ex.: taxa, cartório, internet)
+- Exemplos: "conserto de uma cerca 200" → manutenção; "paguei um cara pra arar a terra" → mão de obra; "fertilizante e insumos" → insumos.
 
 stock:
 - quantity, stockType entry|exit, note opcional.

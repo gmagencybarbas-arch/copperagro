@@ -1,7 +1,6 @@
 "use client";
 
 import { RouteLoadingOverlay } from "@/components/layout/route-loading-overlay";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { MobileMoreSheet } from "@/components/layout/mobile-more-sheet";
 import { ExpenseDrawer } from "@/components/expense-drawer/expense-drawer";
 import { SectorGlyph } from "@/components/sector/sector-icon";
@@ -14,6 +13,7 @@ import { useDrawerStore } from "@/store/drawer-store";
 import { usePlanStore } from "@/store/plan-store";
 import { useSalesStore } from "@/store/sales-store";
 import { pickDefaultSectorId, useSectorStore } from "@/store/sector-store";
+import { playSoftTap } from "@/lib/ui-sounds";
 import { beginRouteLoading } from "@/store/nav-loading-store";
 import { useUIStore } from "@/store/ui-store";
 import {
@@ -85,6 +85,9 @@ const titles: Record<string, string> = {
   "/despesas": "Despesas",
   "/estoque": "Estoque",
   "/planos": "Planos",
+  "/configuracoes": "Configurações",
+  "/conta": "Conta",
+  "/relatorios": "Relatórios",
 };
 
 function NavIcon({
@@ -123,6 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const createSector = useSectorStore((s) => s.createSector);
   const currentPlan = usePlanStore((s) => s.currentPlan);
   const [salesOpen, setSalesOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const isMobile = useIsMobile();
   const [sectorModalOpen, setSectorModalOpen] = useState(false);
   const [sectorCreateOpen, setSectorCreateOpen] = useState(false);
@@ -167,6 +171,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname === "/analises") return "Indicadores e comparações";
     if (pathname === "/planos") return "Assinatura e recursos do plano";
     if (pathname === "/relatorios") return "Relatórios e exportação";
+    if (pathname === "/configuracoes") return "Preferências, conta e relatórios";
+    if (pathname === "/conta") return "Identidade e plano";
     if (pathname === "/agro-ai") return "Lançamentos por texto ou áudio";
     if (pathname === "/dashboard") return "Visão geral da operação";
     return "CoopFinance";
@@ -226,7 +232,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#f9fafb] text-gray-900 antialiased dark:bg-slate-900 dark:text-slate-100">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden h-screen w-[17rem] flex-col border-r border-gray-200/90 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)] dark:border-slate-700/90 dark:bg-slate-900 md:flex">
+      <aside
+        className="fixed inset-y-0 left-0 z-30 hidden h-screen w-[17rem] flex-col border-r border-gray-200/90 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)] dark:border-slate-700/90 dark:bg-slate-900 md:flex"
+        onPointerDown={(e) => {
+          const el = e.target as HTMLElement | null;
+          if (el?.closest("a, button")) playSoftTap();
+        }}
+      >
         <div className="flex h-14 shrink-0 items-center border-b border-gray-100 px-5 dark:border-slate-800">
           <span className="text-sm font-semibold tracking-tight text-gray-900 dark:text-slate-100">
             CoopFinance
@@ -345,28 +357,65 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <QuickExpenseButton />
           <QuickSaleButton />
         </nav>
-        <div className="mt-auto shrink-0 space-y-3 border-t border-gray-200/90 p-4 dark:border-slate-800">
-          <Link
-            href="/relatorios"
-            className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
-          >
-            <FileBarChart className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-            <span>Relatórios</span>
-          </Link>
-          <Link
-            href="/conta"
-            className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
-          >
-            <UserRound className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-            <span>Conta</span>
-          </Link>
-          <Link
-            href="/configuracoes"
-            className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
-          >
-            <Settings className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-            <span>Configurações</span>
-          </Link>
+        <div className="mt-auto shrink-0 space-y-2 border-t border-gray-200/90 p-4 dark:border-slate-800">
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((v) => !v)}
+              className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-colors ${
+                pathname === "/configuracoes" ||
+                pathname === "/conta" ||
+                pathname === "/relatorios"
+                  ? "border-green-200 bg-green-50 text-green-800 dark:border-emerald-800/50 dark:bg-emerald-950/35 dark:text-emerald-200"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
+              }`}
+            >
+              <Settings className="h-4 w-4 shrink-0 text-gray-400 group-hover:text-gray-600" />
+              <span className="flex-1 text-left">Configurações</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${settingsOpen || pathname === "/configuracoes" || pathname === "/conta" || pathname === "/relatorios" ? "rotate-180" : ""}`}
+              />
+            </button>
+            {(settingsOpen ||
+              pathname === "/configuracoes" ||
+              pathname === "/conta" ||
+              pathname === "/relatorios") && (
+              <div className="ml-2 space-y-1 border-l border-gray-200 pl-3 dark:border-slate-700">
+                <Link
+                  href="/configuracoes"
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                    pathname === "/configuracoes"
+                      ? "font-medium text-[#166534] dark:text-emerald-300"
+                      : "text-gray-600 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  Preferências
+                </Link>
+                <Link
+                  href="/conta"
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                    pathname === "/conta"
+                      ? "font-medium text-[#166534] dark:text-emerald-300"
+                      : "text-gray-600 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <UserRound className="h-3.5 w-3.5 shrink-0" />
+                  Conta
+                </Link>
+                <Link
+                  href="/relatorios"
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                    pathname === "/relatorios"
+                      ? "font-medium text-[#166534] dark:text-emerald-300"
+                      : "text-gray-600 hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <FileBarChart className="h-3.5 w-3.5 shrink-0" />
+                  Relatórios
+                </Link>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => {
@@ -378,9 +427,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ArrowUpRight className="h-4 w-4" strokeWidth={2.1} />
             Upgrade
           </button>
-          <div className="pt-2">
-            <ThemeToggle subtle />
-          </div>
           <p className="text-xs text-gray-400 dark:text-slate-600">
             MVP · apenas café
           </p>

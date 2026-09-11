@@ -2,6 +2,7 @@
 
 import { commitAgroLaunches } from "@/lib/agro-ai/commit";
 import { normalizeAgroLaunch } from "@/lib/agro-ai/normalize";
+import { playAgroCard, playAgroSend, playAgroSuccess } from "@/lib/agro-ai/sounds";
 import type { AgroLaunchDraft } from "@/lib/agro-ai/types";
 import type { ValidateContext } from "@/lib/agro-ai/validate";
 import { AgroLaunchCard } from "@/modules/agro-ai/agro-launch-card";
@@ -43,18 +44,48 @@ function WaveBars({ levels }: { levels: number[] }) {
   );
 }
 
+function pick(lines: string[]) {
+  return lines[Math.floor(Math.random() * lines.length)] ?? lines[0]!;
+}
+
 function summarizeCommit(ok: number, fail: number) {
   if (fail === 0 && ok > 0) {
-    return ok === 1
-      ? "1 lançamento registrado com sucesso."
-      : `${ok} lançamentos registrados com sucesso.`;
+    if (ok === 1) {
+      return pick([
+        "+1 lançamento registrado com sucesso 🎉",
+        "Fechou! +1 lançamento no livro ✨",
+        "Boa! +1 lançamento registrado com sucesso 😄",
+        "+1 lançamento registrado. Tá no sistema! 🙌",
+        "Pronto, anotei! +1 lançamento com sucesso 🌱",
+      ]);
+    }
+    return pick([
+      `Mandou bem! +${ok} lançamentos registrados com sucesso 🎉`,
+      `Fechou! +${ok} lançamentos no livro ✨`,
+      `Boa! +${ok} lançamentos registrados com sucesso 😄`,
+    ]);
   }
   if (ok === 0 && fail > 0) {
     return fail === 1
-      ? "1 lançamento precisa de correção."
-      : `${fail} lançamentos precisam de correção.`;
+      ? "Esse lançamento ainda precisa de um ajuste 😅"
+      : `${fail} lançamentos ainda precisam de um ajuste 😅`;
   }
-  return `${ok} lançamento${ok === 1 ? "" : "s"} registrado${ok === 1 ? "" : "s"}. ${fail} precisa${fail === 1 ? "" : "m"} de correção.`;
+  return `${ok} deu certo 🎉 e ${fail} ainda precisa${fail === 1 ? "" : "m"} de correção.`;
+}
+
+function foundLaunchesCopy(n: number) {
+  if (n === 1) {
+    return pick([
+      "Achei 1 lançamento. Dá uma olhada se tá certo? 👀",
+      "Separei 1 lançamento pra você conferir 📝",
+      "Entendi 1 lançamento. Confere pra mim? 😊",
+    ]);
+  }
+  return pick([
+    `Achei ${n} lançamentos. Dá uma olhada se tá certo? 👀`,
+    `Separei ${n} lançamentos pra você conferir 📝`,
+    `Entendi ${n} lançamentos. Confere pra mim? 😊`,
+  ]);
 }
 
 export function AgroAiChat() {
@@ -70,7 +101,7 @@ export function AgroAiChat() {
     {
       id: "hello",
       role: "bot",
-      text: "Diz o que vendeste, o que gastaste ou o que queres lançar no estoque — podes misturar vários na mesma mensagem. Escreve ou grava áudio. Confira os cards antes de salvar.",
+      text: "Olá, sou o AGRO AI! 😊 Você pode me dizer o que vendeu, como estão seus gastos ou o que quer lançar no estoque. Pode misturar vários lançamentos na mesma mensagem, escrever ou mandar áudio — depois é só conferir se eu entendi certo.",
     },
   ]);
   const [busy, setBusy] = useState(false);
@@ -198,6 +229,7 @@ export function AgroAiChat() {
     setCommitting(true);
     try {
       const { ok, fail } = applyCommitResults([d]);
+      if (ok > 0) playAgroSuccess();
       push({
         id: uid(),
         role: "bot",
@@ -214,6 +246,7 @@ export function AgroAiChat() {
     setCommitting(true);
     try {
       const { ok, fail } = applyCommitResults(pendingDrafts);
+      if (ok > 0) playAgroSuccess();
       push({
         id: uid(),
         role: "bot",
@@ -258,7 +291,11 @@ export function AgroAiChat() {
     push({
       id: uid(),
       role: "bot",
-      text: "Pronto para um novo lançamento. Diz o que aconteceu na fazenda.",
+      text: pick([
+        "Bora de novo? Manda o que rolou na fazenda 🌱",
+        "Tô aqui. Pode mandar o próximo lançamento 😊",
+        "Pronto! O que aconteceu agora na fazenda? 👀",
+      ]),
     });
   };
 
@@ -287,27 +324,29 @@ export function AgroAiChat() {
         return;
       }
       const drafts = (data.launches ?? []).map((l) =>
-        normalizeAgroLaunch(l, sectors),
+        normalizeAgroLaunch(l, sectors, text),
       );
       if (!drafts.length) {
         push({
           id: uid(),
           role: "bot",
-          text: "Não encontrei nenhum lançamento nesse texto.",
+          text: pick([
+            "Não achei nenhum lançamento nesse texto 🤔",
+            "Não consegui montar um lançamento com isso. Tenta de outro jeito?",
+          ]),
         });
         return;
       }
 
       const n = drafts.length;
+      playAgroCard();
+      if (n > 1) window.setTimeout(() => playAgroCard(), 90);
       setLines((prev) => [
         ...prev,
         {
           id: uid(),
           role: "bot",
-          text:
-            n === 1
-              ? "Encontramos 1 lançamento. Confira antes de salvar."
-              : `Encontramos ${n} lançamentos. Confira antes de salvar.`,
+          text: foundLaunchesCopy(n),
         },
         ...drafts.map(
           (draft): ChatLine => ({ id: uid(), role: "card", draft }),
@@ -329,6 +368,7 @@ export function AgroAiChat() {
     if (!t || busy || recording) return;
     setInput("");
     if (taRef.current) taRef.current.style.height = "44px";
+    playAgroSend();
     void parseText(t);
   };
 
@@ -429,6 +469,7 @@ export function AgroAiChat() {
 
   const finishRec = () => {
     discardRef.current = false;
+    playAgroSend();
     recorder.current?.stop();
     recorder.current = null;
   };
@@ -485,7 +526,7 @@ export function AgroAiChat() {
           }
           const d = line.draft;
           return (
-            <div key={line.id} className="flex justify-start">
+            <div key={line.id} className="agro-card-enter flex justify-start">
               <AgroLaunchCard
                 draft={d}
                 sectors={sectors}

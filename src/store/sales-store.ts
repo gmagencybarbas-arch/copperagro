@@ -7,7 +7,15 @@ import {
   createDefaultSalesFilter,
   isoDateFromDate,
 } from "@/store/sales-metrics";
-import { persistSale, persistSaleDelete, persistSaleUpdate, persistStockMovement, persistStockTotal } from "@/lib/db/persist";
+import {
+  persistSale,
+  persistSaleDelete,
+  persistSaleUpdate,
+  persistStockMovement,
+  persistStockMovementDelete,
+  persistStockMovementUpdate,
+  persistStockTotal,
+} from "@/lib/db/persist";
 import { useSectorStore } from "@/store/sector-store";
 import type {
   ComparisonSeriesMode,
@@ -151,6 +159,11 @@ type SalesState = {
     patch: Partial<Pick<Sale, "date" | "quantity" | "unitPrice" | "buyer">>,
   ) => void;
   deleteSale: (id: string) => void;
+  updateStockMovement: (
+    id: string,
+    patch: Partial<Pick<StockMovement, "date" | "type" | "quantity" | "sectorId" | "note">>,
+  ) => boolean;
+  deleteStockMovement: (id: string) => boolean;
 };
 
 export const useSalesStore = create<SalesState>()((set) => ({
@@ -336,6 +349,64 @@ export const useSalesStore = create<SalesState>()((set) => ({
           };
         });
         void persistSaleDelete(id);
+      },
+
+      updateStockMovement: (id, patch) => {
+        let updated: StockMovement | null = null;
+        set((s) => {
+          const movements = reconcileMovements(s.sales, s.stockMovements);
+          const idx = movements.findIndex((m) => m.id === id);
+          if (idx < 0) return s;
+          const cur = movements[idx]!;
+          if (cur.relatedSaleId) return s;
+          const nextQty =
+            patch.quantity !== undefined
+              ? Math.floor(Number(patch.quantity))
+              : cur.quantity;
+          const nextType = patch.type ?? cur.type;
+          const nextSector = patch.sectorId ?? cur.sectorId;
+          if (nextQty <= 0 || !nextSector) return s;
+          const others = movements.filter((m) => m.id !== id);
+          if (nextType === "exit") {
+            const { remaining } = computeStockSnapshot(
+              s.stockTotalSacas,
+              others,
+              nextSector,
+            );
+            if (nextQty > remaining) return s;
+          }
+          const next: StockMovement = {
+            ...cur,
+            date: patch.date ?? cur.date,
+            type: nextType,
+            quantity: nextQty,
+            sectorId: nextSector,
+            note:
+              patch.note !== undefined
+                ? patch.note.trim() || undefined
+                : cur.note,
+          };
+          updated = next;
+          const stockMovements = [...movements];
+          stockMovements[idx] = next;
+          return { stockMovements };
+        });
+        if (updated) void persistStockMovementUpdate(updated);
+        return updated != null;
+      },
+
+      deleteStockMovement: (id) => {
+        let ok = false;
+        set((s) => {
+          const cur = s.stockMovements.find((m) => m.id === id);
+          if (!cur || cur.relatedSaleId) return s;
+          ok = true;
+          return {
+            stockMovements: s.stockMovements.filter((m) => m.id !== id),
+          };
+        });
+        if (ok) void persistStockMovementDelete(id);
+        return ok;
       },
 }));
 

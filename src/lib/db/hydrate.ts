@@ -218,6 +218,33 @@ export async function loadProfileAndOrgDetailed(
   return { ok: true };
 }
 
+type SectorRow = {
+  id: string;
+  name: string;
+  unit: string;
+  color: string;
+  icon: string;
+};
+
+function mapSectorRow(row: SectorRow): Sector {
+  return {
+    id: row.id,
+    name: row.name,
+    unit: row.unit,
+    color: row.color as SectorColorToken,
+    icon: row.icon,
+  };
+}
+
+function nameKey(name: string) {
+  return name.trim().toLowerCase();
+}
+
+/**
+ * Login + SessionProvider hidratavam ao mesmo tempo: os dois viam 0 setores
+ * e cada um inseria Café/Leite/Bovino/Hortifruti. Infinity só revelava a lista
+ * completa — não cria categorias extra.
+ */
 async function ensureDefaultSectors(organizationId: string): Promise<Sector[]> {
   const supabase = getSupabase();
   const existing = await supabase
@@ -231,17 +258,23 @@ async function ensureDefaultSectors(organizationId: string): Promise<Sector[]> {
     return [];
   }
 
-  if ((existing.data ?? []).length > 0) {
-    return (existing.data ?? []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      unit: row.unit,
-      color: row.color as SectorColorToken,
-      icon: row.icon,
-    }));
+  const rows = (existing.data ?? []) as SectorRow[];
+  const seen = new Set(rows.map((row) => nameKey(row.name)));
+
+  /** Nunca apagar setores daqui. Duplicados ficam; o utilizador edita/exclui. */
+  if (rows.length > 0) {
+    const missingDefaults = DEFAULT_SECTORS.filter((s) => !seen.has(nameKey(s.name)));
+    if (missingDefaults.length === 0) {
+      return rows.map(mapSectorRow);
+    }
   }
 
-  const rows = DEFAULT_SECTORS.map((s) => ({
+  const missing = DEFAULT_SECTORS.filter((s) => !seen.has(nameKey(s.name)));
+  if (missing.length === 0) {
+    return rows.map(mapSectorRow);
+  }
+
+  const toInsert = missing.map((s) => ({
     id: newId(),
     organization_id: organizationId,
     name: s.name,
@@ -251,29 +284,33 @@ async function ensureDefaultSectors(organizationId: string): Promise<Sector[]> {
     status: "active",
   }));
 
-  const { error: seedError } = await supabase.from("sectors").insert(rows);
+  const { error: seedError } = await supabase.from("sectors").insert(toInsert);
   if (seedError && /status/i.test(seedError.message)) {
-    const withoutStatus = rows.map(({ status: _s, ...rest }) => rest);
+    const withoutStatus = toInsert.map(({ status: _s, ...rest }) => rest);
     const retry = await supabase.from("sectors").insert(withoutStatus);
     if (retry.error) {
       console.error(retry.error);
-      return [];
+      return rows.map(mapSectorRow);
     }
   } else if (seedError) {
     console.error(seedError);
-    return [];
+    return rows.map(mapSectorRow);
   }
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    unit: r.unit,
-    color: r.color as SectorColorToken,
-    icon: r.icon,
-  }));
+  return [...rows, ...toInsert].map(mapSectorRow);
 }
 
+let hydrateInFlight: Promise<void> | null = null;
+
 export async function hydrateOperationalData(): Promise<void> {
+  if (hydrateInFlight) return hydrateInFlight;
+  hydrateInFlight = runHydrateOperationalData().finally(() => {
+    hydrateInFlight = null;
+  });
+  return hydrateInFlight;
+}
+
+async function runHydrateOperationalData(): Promise<void> {
   const id = useAuthStore.getState().company?.id;
   if (!id) return;
   const supabase = getSupabase();

@@ -8,7 +8,8 @@ import { signOutAll } from "@/lib/db/hydrate";
 import { useAuthStore } from "@/store/auth-store";
 import { useSectorStore } from "@/store/sector-store";
 import type { Sector } from "@/types/sector";
-import { Pencil, Tags, UserRound } from "lucide-react";
+import { FileBarChart, Pencil, SunMoon, Tags, UserRound } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -44,6 +45,58 @@ export default function ConfiguracoesPage() {
         </h1>
         <p className="mt-1 text-sm text-gray-500">Preferências gerais da conta e sessão.</p>
       </header>
+
+      <section className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/conta"
+          className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-800"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+            <UserRound className="h-5 w-5" strokeWidth={1.9} />
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-gray-900 dark:text-slate-100">
+              Conta
+            </span>
+            <span className="mt-0.5 block text-xs text-gray-500">
+              E-mail, empresa e plano atual.
+            </span>
+          </span>
+        </Link>
+        <Link
+          href="/relatorios"
+          className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-800"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+            <FileBarChart className="h-5 w-5" strokeWidth={1.9} />
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-gray-900 dark:text-slate-100">
+              Relatórios
+            </span>
+            <span className="mt-0.5 block text-xs text-gray-500">
+              Exportação e comparativos (em breve).
+            </span>
+          </span>
+        </Link>
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+            <SunMoon className="h-5 w-5" strokeWidth={1.9} />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">
+              Aparência
+            </h2>
+            <p className="mt-0.5 text-sm text-gray-500">
+              Tema claro ou escuro neste aparelho. Só muda a interface, não os dados.
+            </p>
+          </div>
+        </div>
+        <ThemeToggle hideLabel />
+      </section>
 
       <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-start gap-3">
@@ -109,12 +162,6 @@ export default function ConfiguracoesPage() {
             {savingIdentity ? "Salvando..." : "Salvar identidade"}
           </button>
         </div>
-      </section>
-
-      <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:hidden">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Aparência</h2>
-        <p className="text-xs text-gray-500">Claro ou escuro neste aparelho.</p>
-        <ThemeToggle />
       </section>
 
       <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">

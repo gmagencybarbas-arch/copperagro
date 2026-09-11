@@ -167,6 +167,86 @@ export async function persistExpense(expense: Expense) {
   if (error) console.error(error);
 }
 
+export async function persistExpenseUpdate(expense: Expense) {
+  const organization_id = orgId();
+  if (!organization_id) return;
+  const supabase = getSupabase();
+  const payload: Record<string, unknown> = {
+    sector_id: expense.sectorId ?? null,
+    date: expense.date,
+    description: expense.description,
+    amount: expense.amount,
+    category: expense.category,
+  };
+  let { error } = await supabase
+    .from("expenses")
+    .update(payload)
+    .eq("id", expense.id)
+    .eq("organization_id", organization_id);
+  if (error && missingColumn(error.message, "date")) {
+    delete payload.date;
+    payload.expense_date = expense.date;
+    ({ error } = await supabase
+      .from("expenses")
+      .update(payload)
+      .eq("id", expense.id)
+      .eq("organization_id", organization_id));
+  }
+  if (error) console.error(error);
+}
+
+export async function persistExpenseDelete(id: string) {
+  const organization_id = orgId();
+  if (!organization_id) return;
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", organization_id);
+  if (error) console.error(error);
+}
+
+export async function persistStockMovementUpdate(mov: StockMovement) {
+  const organization_id = orgId();
+  if (!organization_id) return;
+  const supabase = getSupabase();
+  const payload: Record<string, unknown> = {
+    sector_id: mov.sectorId,
+    date: mov.date,
+    type: mov.type,
+    quantity: mov.quantity,
+    note: mov.note ?? null,
+  };
+  let { error } = await supabase
+    .from("stock_movements")
+    .update(payload)
+    .eq("id", mov.id)
+    .eq("organization_id", organization_id);
+  if (error && missingColumn(error.message, "date")) {
+    delete payload.date;
+    payload.movement_date = mov.date;
+    ({ error } = await supabase
+      .from("stock_movements")
+      .update(payload)
+      .eq("id", mov.id)
+      .eq("organization_id", organization_id));
+  }
+  if (error) console.error(error);
+}
+
+export async function persistStockMovementDelete(id: string) {
+  const organization_id = orgId();
+  if (!organization_id) return;
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("stock_movements")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", organization_id);
+  if (error) console.error(error);
+}
+
 export async function persistSectorInsert(sector: Sector) {
   const organization_id = orgId();
   if (!organization_id) return;

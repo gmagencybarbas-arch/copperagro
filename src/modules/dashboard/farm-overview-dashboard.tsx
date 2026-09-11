@@ -12,11 +12,25 @@ import { CardHelpLabel } from "@/components/ui/card-help";
 import { formatBRL, formatBRLFine } from "@/lib/format";
 import { SECTOR_CHART_HEX } from "@/lib/sector-palette";
 import { useExpenseStore } from "@/store/expense-store";
-import { useSectorStore } from "@/store/sector-store";
-import { useSalesStore, useStockSnapshot } from "@/store/sales-store";
+import { pluralizeUnit, useSectorStore } from "@/store/sector-store";
+import {
+  computeStockSnapshot,
+  useSalesStore,
+  useStockSnapshot,
+} from "@/store/sales-store";
 import { type Sale } from "@/types/sale";
 import type { Sector, SectorColorToken } from "@/types/sector";
 import { ArrowUpRight, ChevronRight } from "lucide-react";
+
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function inDateRange(iso: string, from: string, to: string) {
+  if (from && iso < from) return false;
+  if (to && iso > to) return false;
+  return true;
+}
 import Link from "next/link";
 import { useEffect, useId, useMemo, useState } from "react";
 
@@ -261,9 +275,24 @@ export function FarmOverviewDashboard() {
   const setSelectedSector = useSectorStore((s) => s.setSelectedSector);
   const sectors = useSectorStore((s) => s.sectors);
   const sales = useSalesStore((s) => s.sales);
+  const stockMovements = useSalesStore((s) => s.stockMovements);
+  const stockTotalSacas = useSalesStore((s) => s.stockTotalSacas);
   const stock = useStockSnapshot();
   const expenses = useExpenseStore((s) => s.expenses);
   const [chartMode, setChartMode] = useState<"global" | "split">("global");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const periodActive = Boolean(dateFrom || dateTo);
+
+  const filteredSales = useMemo(
+    () => sales.filter((s) => inDateRange(s.date, dateFrom, dateTo)),
+    [sales, dateFrom, dateTo],
+  );
+  const filteredExpenses = useMemo(
+    () => expenses.filter((e) => inDateRange(e.date, dateFrom, dateTo)),
+    [expenses, dateFrom, dateTo],
+  );
 
   useEffect(() => {
     setSelectedSector(null);
@@ -271,30 +300,30 @@ export function FarmOverviewDashboard() {
 
   const expensesBySector = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of expenses) {
+    for (const e of filteredExpenses) {
       if (!e.sectorId) continue;
       map.set(e.sectorId, (map.get(e.sectorId) ?? 0) + e.amount);
     }
     return map;
-  }, [expenses]);
+  }, [filteredExpenses]);
 
   const sectorAgg = useMemo(
-    () => buildSectorAgg(sales, sectors, expensesBySector),
-    [sales, sectors, expensesBySector],
+    () => buildSectorAgg(filteredSales, sectors, expensesBySector),
+    [filteredSales, sectors, expensesBySector],
   );
 
   const totalRevenue = useMemo(
-    () => sales.reduce((acc, s) => acc + s.totalPrice, 0),
-    [sales],
+    () => filteredSales.reduce((acc, s) => acc + s.totalPrice, 0),
+    [filteredSales],
   );
   const totalUnits = useMemo(
-    () => sales.reduce((acc, s) => acc + s.quantity, 0),
-    [sales],
+    () => filteredSales.reduce((acc, s) => acc + s.quantity, 0),
+    [filteredSales],
   );
   const averagePrice = totalUnits > 0 ? totalRevenue / totalUnits : 0;
   const totalExpenses = useMemo(
-    () => expenses.reduce((acc, e) => acc + e.amount, 0),
-    [expenses],
+    () => filteredExpenses.reduce((acc, e) => acc + e.amount, 0),
+    [filteredExpenses],
   );
   const netProfit = totalRevenue - totalExpenses;
   const isDanger = totalExpenses > totalRevenue * 0.7 && totalRevenue > 0;
@@ -304,7 +333,10 @@ export function FarmOverviewDashboard() {
     [sectorAgg],
   );
 
-  const globalSeries = useMemo(() => buildRevenueSeries(sales), [sales]);
+  const globalSeries = useMemo(
+    () => buildRevenueSeries(filteredSales),
+    [filteredSales],
+  );
   const revenueGrowthPercent = useMemo(() => {
     if (globalSeries.length < 2) return null;
     const last = globalSeries[globalSeries.length - 1]!.total;
@@ -313,30 +345,58 @@ export function FarmOverviewDashboard() {
     return ((last - prev) / prev) * 100;
   }, [globalSeries]);
 
-  const monthlyBest = useMemo(() => {
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const monthSales = sales.filter(
-      (s) => new Date(`${s.date}T12:00:00`) >= monthStart,
-    );
-    const agg = buildSectorAgg(monthSales, sectors, expensesBySector).sort(
+  const periodBest = useMemo(() => {
+    const monthStart = isoDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    const list = periodActive
+      ? filteredSales
+      : filteredSales.filter((s) => s.date >= monthStart);
+    const agg = buildSectorAgg(list, sectors, expensesBySector).sort(
       (a, b) => b.revenue - a.revenue,
     );
     return agg[0] ?? null;
-  }, [sales, sectors, expensesBySector]);
+  }, [filteredSales, sectors, expensesBySector, periodActive]);
 
   const projected4wRevenue = useMemo(() => {
     const now = new Date();
     const start = new Date(now);
     start.setDate(now.getDate() - 27);
     start.setHours(0, 0, 0, 0);
+    const from = isoDate(start);
     return sales
-      .filter((s) => new Date(`${s.date}T12:00:00`) >= start)
+      .filter((s) => s.date >= from)
       .reduce((acc, s) => acc + s.totalPrice, 0);
   }, [sales]);
 
   const activeSectors = revenueBySector.filter((s) => s.revenue > 0).length;
+
+  const stockBySector = useMemo(() => {
+    return sectors.map((sector) => {
+      const snap = computeStockSnapshot(
+        stockTotalSacas,
+        stockMovements,
+        sector.id,
+      );
+      return {
+        id: sector.id,
+        name: sector.name,
+        icon: sector.icon,
+        colorToken: sector.color,
+        unit: sector.unit,
+        remaining: snap.remaining,
+        total: snap.total,
+        sold: snap.sold,
+      };
+    });
+  }, [sectors, stockMovements, stockTotalSacas]);
+
+  const stockBySectorId = useMemo(
+    () => new Map(stockBySector.map((s) => [s.id, s])),
+    [stockBySector],
+  );
+
+  const maxSectorStock = Math.max(1, ...stockBySector.map((s) => s.remaining));
+  const fmtInt = (n: number) =>
+    new Intl.NumberFormat("pt-BR").format(Math.round(n));
 
   return (
     <div className="animate-dash-enter mx-auto max-w-7xl space-y-5 pb-16">
@@ -349,16 +409,79 @@ export function FarmOverviewDashboard() {
             Farm Overview
           </h1>
           <p className="max-w-xl text-sm text-gray-600 dark:text-slate-400">
-            Visão consolidada da operação — receita, custos e mix por setor.
+            Visão consolidada da operação — receita, custos, mix e estoque por setor.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-            {sectors.length} setores
-          </span>
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:bg-slate-800 dark:text-slate-300">
-            Estoque {new Intl.NumberFormat("pt-BR").format(stock.remaining)}
-          </span>
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+              {sectors.length} setores
+            </span>
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+              Estoque {new Intl.NumberFormat("pt-BR").format(stock.remaining)}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="space-y-0.5">
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                De
+              </span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-800 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </label>
+            <label className="space-y-0.5">
+              <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                Até
+              </span>
+              <input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-800 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date();
+                setDateFrom(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`);
+                setDateTo(isoDate(d));
+              }}
+              className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            >
+              Este mês
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date();
+                const start = new Date(d);
+                start.setDate(d.getDate() - 29);
+                setDateFrom(isoDate(start));
+                setDateTo(isoDate(d));
+              }}
+              className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            >
+              30 dias
+            </button>
+            {periodActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="rounded-xl px-2.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 dark:text-emerald-300"
+              >
+                Tudo
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -492,7 +615,7 @@ export function FarmOverviewDashboard() {
                     </p>
                     <AreaChart
                       series={buildRevenueSeries(
-                        sales.filter((s) => s.sectorId === sector.id),
+                        filteredSales.filter((s) => s.sectorId === sector.id),
                       )}
                     />
                   </div>
@@ -578,11 +701,12 @@ export function FarmOverviewDashboard() {
         }
       >
         <TableScroll hint={false}>
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[800px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:border-slate-800 dark:text-slate-500">
                 <th className="px-5 py-3">Setor</th>
                 <th className="px-4 py-3 text-right">Unidades</th>
+                <th className="px-4 py-3 text-right">Estoque</th>
                 <th className="px-4 py-3 text-right">Receita</th>
                 <th className="px-4 py-3 text-right">Share</th>
                 <th className="px-4 py-3 text-right">Preço méd.</th>
@@ -594,7 +718,7 @@ export function FarmOverviewDashboard() {
               {revenueBySector.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-5 py-12 text-center text-gray-500 dark:text-slate-400"
                   >
                     Sem setores ou vendas no banco ainda.
@@ -627,6 +751,15 @@ export function FarmOverviewDashboard() {
                     </td>
                     <td className="px-4 py-3.5 text-right tabular-nums text-gray-800 dark:text-slate-200">
                       {new Intl.NumberFormat("pt-BR").format(s.quantity)}
+                    </td>
+                    <td className="px-4 py-3.5 text-right tabular-nums text-gray-800 dark:text-slate-200">
+                      {fmtInt(stockBySectorId.get(s.id)?.remaining ?? 0)}
+                      <span className="ml-1 text-[11px] font-normal text-gray-400">
+                        {pluralizeUnit(
+                          stockBySectorId.get(s.id)?.unit ?? "un",
+                          stockBySectorId.get(s.id)?.remaining ?? 0,
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-3.5 text-right font-semibold tabular-nums text-gray-900 dark:text-slate-50">
                       {formatBRL(Math.round(s.revenue))}
@@ -669,15 +802,19 @@ export function FarmOverviewDashboard() {
       {/* Insights compactos */}
       <div className="grid gap-4 sm:grid-cols-3">
         <FramePanel
-          title="Melhor setor no mês"
-          help="Setor com maior faturamento no mês corrente (calendário)."
+          title={periodActive ? "Melhor setor no período" : "Melhor setor no mês"}
+          help={
+            periodActive
+              ? "Setor com maior faturamento no intervalo filtrado."
+              : "Setor com maior faturamento no histórico carregado (usa o filtro se estiver ativo)."
+          }
         >
           <p className="text-lg font-semibold text-emerald-800 dark:text-emerald-300">
-            {monthlyBest?.name ?? "Sem dados"}
+            {periodBest?.name ?? "Sem dados"}
           </p>
-          {monthlyBest && (
+          {periodBest && (
             <p className="mt-1 text-sm tabular-nums text-gray-500 dark:text-slate-400">
-              {formatBRL(Math.round(monthlyBest.revenue))}
+              {formatBRL(Math.round(periodBest.revenue))}
             </p>
           )}
         </FramePanel>
@@ -695,15 +832,64 @@ export function FarmOverviewDashboard() {
         </FramePanel>
         <FramePanel
           title="Estoque restante"
-          help="Capacidade / entradas menos saídas (vendas e baixas). É o que ainda pode vender."
+          help="Geral = soma do que ainda pode vender. Em baixo, o saldo de cada setor (entradas − saídas daquele setor)."
+          actions={
+            <Link
+              href="/estoque"
+              className="frame-chip inline-flex items-center gap-1"
+            >
+              Estoque
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          }
         >
           <p className="text-lg font-semibold tabular-nums text-gray-900 dark:text-slate-50">
-            {new Intl.NumberFormat("pt-BR").format(stock.remaining)}
+            {fmtInt(stock.remaining)}
+            <span className="ml-1.5 text-xs font-medium text-gray-400">
+              geral
+            </span>
           </p>
           <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
-            Total {new Intl.NumberFormat("pt-BR").format(stock.total)} · vendido{" "}
-            {new Intl.NumberFormat("pt-BR").format(stock.sold)}
+            Total {fmtInt(stock.total)} · vendido {fmtInt(stock.sold)}
           </p>
+          <ul className="mt-3 space-y-2">
+            {stockBySector.length === 0 ? (
+              <li className="text-xs text-gray-500">Sem setores ainda.</li>
+            ) : (
+              stockBySector.map((s) => (
+                <li key={s.id}>
+                  <Link
+                    href={`/setor/${s.id}`}
+                    className="group block rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/70"
+                  >
+                    <div className="flex items-center gap-2 text-xs">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: SECTOR_CHART_HEX[s.colorToken] }}
+                      />
+                      <span className="min-w-0 flex-1 truncate font-medium text-gray-700 group-hover:text-gray-900 dark:text-slate-300">
+                        {s.name}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-gray-800 dark:text-slate-100">
+                        {fmtInt(s.remaining)}{" "}
+                        <span className="text-gray-400">
+                          {pluralizeUnit(s.unit, s.remaining)}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-emerald-500/80"
+                        style={{
+                          width: `${Math.max(4, (s.remaining / maxSectorStock) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </Link>
+                </li>
+              ))
+            )}
+          </ul>
         </FramePanel>
       </div>
     </div>

@@ -3,7 +3,7 @@
 import {
   DEFAULT_EXPENSE_CATEGORY,
 } from "@/lib/expense-migrate";
-import { persistExpense } from "@/lib/db/persist";
+import { persistExpense, persistExpenseDelete, persistExpenseUpdate } from "@/lib/db/persist";
 import type { Expense, ExpenseCategory, ExpenseFilters } from "@/types/expense";
 import { create } from "zustand";
 
@@ -25,6 +25,8 @@ type ExpenseState = {
   expenses: Expense[];
   filters: ExpenseFilters;
   addExpense: (input: Omit<Expense, "id">) => boolean;
+  updateExpense: (id: string, patch: Partial<Omit<Expense, "id">>) => boolean;
+  deleteExpense: (id: string) => void;
   setFilters: (patch: Partial<ExpenseFilters>) => void;
   clearFilters: () => void;
 };
@@ -55,6 +57,37 @@ export const useExpenseStore = create<ExpenseState>()((set) => ({
     set((s) => ({ expenses: [expense, ...s.expenses] }));
     void persistExpense(expense);
     return true;
+  },
+
+  updateExpense: (id, patch) => {
+    let next: Expense | null = null;
+    set((s) => {
+      const idx = s.expenses.findIndex((e) => e.id === id);
+      if (idx < 0) return s;
+      const cur = s.expenses[idx]!;
+      const amount = Number(patch.amount ?? cur.amount);
+      const description = (patch.description ?? cur.description).trim();
+      if (!Number.isFinite(amount) || amount <= 0 || !description) return s;
+      next = {
+        ...cur,
+        ...patch,
+        amount,
+        description,
+        date: patch.date ?? cur.date,
+        category: patch.category ?? cur.category,
+        sectorId: patch.sectorId === "" ? undefined : (patch.sectorId ?? cur.sectorId),
+      };
+      const expenses = [...s.expenses];
+      expenses[idx] = next;
+      return { expenses };
+    });
+    if (next) void persistExpenseUpdate(next);
+    return next != null;
+  },
+
+  deleteExpense: (id) => {
+    set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) }));
+    void persistExpenseDelete(id);
   },
 
   setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
